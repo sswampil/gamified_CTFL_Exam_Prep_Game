@@ -8,6 +8,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         @keyframes xpFloat {
             0% {
@@ -895,6 +896,20 @@
             const [examHistory, setExamHistory] = useState([]);
             const [examResults, setExamResults] = useState(null);
 
+            // Daily Missions State
+            const [dailyMissions, setDailyMissions] = useState({
+                date: null,
+                missions: {
+                    answer10: { completed: false, progress: 0, target: 10, reward: 50, title: 'Answer 10 questions', emoji: '📝' },
+                    streak5: { completed: false, progress: 0, target: 5, reward: 100, title: 'Get 5 correct in a row', emoji: '🔥' },
+                    study15: { completed: false, progress: 0, target: 900, reward: 75, title: 'Study for 15 minutes', emoji: '⏱️' },
+                    chapterQuiz: { completed: false, progress: 0, target: 1, reward: 150, title: 'Complete a chapter quiz', emoji: '📚' }
+                },
+                allCompleted: false
+            });
+            const [studySessionStart, setStudySessionStart] = useState(null);
+            const [showNewMissionsBanner, setShowNewMissionsBanner] = useState(false);
+
             // Load chapter stats from localStorage on mount
             useEffect(() => {
                 const saved = localStorage.getItem('ctfl-chapter-stats');
@@ -1046,6 +1061,73 @@
                 return () => clearInterval(timer);
             }, [isExamMode, examStartTime]);
 
+            // Load and check daily missions
+            useEffect(() => {
+                const savedMissions = localStorage.getItem('ctfl-daily-missions');
+                const today = getTodayString();
+
+                if (savedMissions) {
+                    try {
+                        const data = JSON.parse(savedMissions);
+
+                        // Check if it's a new day
+                        if (data.date !== today) {
+                            // Reset missions for new day
+                            const newMissions = {
+                                date: today,
+                                missions: {
+                                    answer10: { completed: false, progress: 0, target: 10, reward: 50, title: 'Answer 10 questions', emoji: '📝' },
+                                    streak5: { completed: false, progress: 0, target: 5, reward: 100, title: 'Get 5 correct in a row', emoji: '🔥' },
+                                    study15: { completed: false, progress: 0, target: 900, reward: 75, title: 'Study for 15 minutes', emoji: '⏱️' },
+                                    chapterQuiz: { completed: false, progress: 0, target: 1, reward: 150, title: 'Complete a chapter quiz', emoji: '📚' }
+                                },
+                                allCompleted: false
+                            };
+                            setDailyMissions(newMissions);
+                            saveDailyMissions(newMissions);
+                            setShowNewMissionsBanner(true);
+                            setTimeout(() => setShowNewMissionsBanner(false), 5000);
+                        } else {
+                            setDailyMissions(data);
+                        }
+                    } catch (e) {
+                        console.error('Error loading daily missions:', e);
+                    }
+                } else {
+                    // First time - initialize missions
+                    const newMissions = {
+                        date: today,
+                        missions: {
+                            answer10: { completed: false, progress: 0, target: 10, reward: 50, title: 'Answer 10 questions', emoji: '📝' },
+                            streak5: { completed: false, progress: 0, target: 5, reward: 100, title: 'Get 5 correct in a row', emoji: '🔥' },
+                            study15: { completed: false, progress: 0, target: 900, reward: 75, title: 'Study for 15 minutes', emoji: '⏱️' },
+                            chapterQuiz: { completed: false, progress: 0, target: 1, reward: 150, title: 'Complete a chapter quiz', emoji: '📚' }
+                        },
+                        allCompleted: false
+                    };
+                    setDailyMissions(newMissions);
+                    saveDailyMissions(newMissions);
+                }
+            }, []);
+
+            // Track study time for missions
+            useEffect(() => {
+                if (currentScreen === 'quiz' && !studySessionStart) {
+                    setStudySessionStart(Date.now());
+                }
+
+                if (currentScreen === 'quiz' && studySessionStart) {
+                    const interval = setInterval(() => {
+                        const elapsed = Math.floor((Date.now() - studySessionStart) / 1000);
+                        updateMissionProgress('study15', elapsed);
+                    }, 1000);
+
+                    return () => clearInterval(interval);
+                } else if (currentScreen !== 'quiz') {
+                    setStudySessionStart(null);
+                }
+            }, [currentScreen, studySessionStart]);
+
             // Save chapter stats to localStorage
             const saveChapterStats = (stats) => {
                 localStorage.setItem('ctfl-chapter-stats', JSON.stringify(stats));
@@ -1106,6 +1188,48 @@
                 // Show token gain animation
                 setTokenGain(earnedTokens);
                 setTimeout(() => setTokenGain(null), 1500);
+            };
+
+            // Save daily missions to localStorage
+            const saveDailyMissions = (missions) => {
+                localStorage.setItem('ctfl-daily-missions', JSON.stringify(missions));
+                setDailyMissions(missions);
+            };
+
+            // Update mission progress
+            const updateMissionProgress = (missionKey, progress) => {
+                if (dailyMissions.missions[missionKey].completed) return;
+
+                const newMissions = { ...dailyMissions };
+                newMissions.missions[missionKey].progress = Math.min(progress, newMissions.missions[missionKey].target);
+
+                // Check if mission completed
+                if (newMissions.missions[missionKey].progress >= newMissions.missions[missionKey].target && !newMissions.missions[missionKey].completed) {
+                    newMissions.missions[missionKey].completed = true;
+                    awardTokens(newMissions.missions[missionKey].reward);
+                    alert(`✅ Mission Complete! ${newMissions.missions[missionKey].title}\n+${newMissions.missions[missionKey].reward} tokens!`);
+
+                    // Check if all missions completed
+                    const allDone = Object.values(newMissions.missions).every(m => m.completed);
+                    if (allDone && !newMissions.allCompleted) {
+                        newMissions.allCompleted = true;
+                        awardTokens(200);
+                        // Award bonus power-up (hint)
+                        const newInventory = { ...inventory };
+                        newInventory.hints = (newInventory.hints || 0) + 1;
+                        saveInventory(newInventory);
+                        alert('🎉 ALL MISSIONS COMPLETE! +200 bonus tokens + 1 FREE Hint power-up!');
+                    }
+                }
+
+                saveDailyMissions(newMissions);
+            };
+
+            // Complete mission (for simple boolean checks)
+            const completeMission = (missionKey) => {
+                if (dailyMissions.missions[missionKey].completed) return;
+
+                updateMissionProgress(missionKey, dailyMissions.missions[missionKey].target);
             };
 
             // Save exam history to localStorage
@@ -1629,7 +1753,21 @@
                     awardXP(earnedXP);
 
                     // Award tokens for correct answer
-                    awardTokens(10);
+                    if (!isExamMode) {
+                        awardTokens(10);
+                    }
+                }
+
+                // Track daily missions
+                if (!isExamMode) {
+                    // Track "Answer 10 questions" mission
+                    const totalAnswered = Object.keys(answeredQuestions).length + 1;
+                    updateMissionProgress('answer10', totalAnswered);
+
+                    // Track "5 correct in a row" mission
+                    if (isCorrect) {
+                        updateMissionProgress('streak5', consecutiveCorrect + 1);
+                    }
                 }
 
                 // Track achievement progress
@@ -1690,6 +1828,17 @@
 
             const handleBackToMenu = () => {
                 if (window.confirm('Return to menu? Your progress will be saved in statistics.')) {
+                    // Check if completed a full chapter quiz (not exam mode, not "all topics")
+                    if (!isExamMode && selectedMode && selectedMode !== 'all') {
+                        const chapterQuestions = questionBank.filter(q => q.chapter === selectedMode);
+                        const answeredCount = Object.keys(answeredQuestions).length;
+
+                        // Check if answered all questions in the chapter
+                        if (answeredCount === chapterQuestions.length) {
+                            completeMission('chapterQuiz');
+                        }
+                    }
+
                     setCurrentScreen('home');
                     setSelectedMode(null);
                     setQuizQuestions([]);
@@ -1909,6 +2058,104 @@
                         <span className="text-2xl mr-1">💰</span>
                         <span>{tokens.toLocaleString()}</span>
                     </button>
+                );
+            };
+
+            // Daily Missions Panel Component
+            const DailyMissionsPanel = () => {
+                if (!dailyMissions.date) return null;
+
+                const missionsArray = Object.entries(dailyMissions.missions).map(([key, mission]) => ({
+                    key,
+                    ...mission
+                }));
+
+                const completedCount = missionsArray.filter(m => m.completed).length;
+
+                return (
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-semibold text-gray-800">📋 Daily Missions</h2>
+                            <span className="text-sm font-semibold px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                {completedCount}/4 Complete
+                            </span>
+                        </div>
+
+                        {showNewMissionsBanner && (
+                            <div className="mb-4 p-3 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-bold text-center animate-pulse">
+                                🎯 NEW MISSIONS AVAILABLE!
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            {missionsArray.map((mission) => {
+                                const progressPercent = (mission.progress / mission.target) * 100;
+
+                                return (
+                                    <div
+                                        key={mission.key}
+                                        className={`border-2 rounded-lg p-4 transition-all ${
+                                            mission.completed
+                                                ? 'border-green-400 bg-green-50'
+                                                : 'border-gray-200 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-3xl">{mission.emoji}</span>
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-800">{mission.title}</h3>
+                                                    <p className="text-sm text-gray-600">
+                                                        {mission.completed ? (
+                                                            <span className="text-green-600 font-bold">✓ Completed!</span>
+                                                        ) : mission.key === 'study15' ? (
+                                                            <span>{Math.floor(mission.progress / 60)}/{Math.floor(mission.target / 60)} minutes</span>
+                                                        ) : (
+                                                            <span>{mission.progress}/{mission.target}</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                {mission.completed ? (
+                                                    <span className="text-3xl">✅</span>
+                                                ) : (
+                                                    <div className="text-yellow-600 font-bold">
+                                                        <span className="text-sm">Reward:</span>
+                                                        <div className="text-lg">{mission.reward} 💰</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        {!mission.completed && (
+                                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                                <div
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Bonus Reward */}
+                        {dailyMissions.allCompleted ? (
+                            <div className="mt-4 p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-center">
+                                <p className="font-bold text-lg">🎉 ALL MISSIONS COMPLETE!</p>
+                                <p className="text-sm">Bonus: +200 tokens + 1 Hint power-up</p>
+                            </div>
+                        ) : (
+                            <div className="mt-4 p-4 bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300 rounded-lg">
+                                <p className="text-sm font-semibold text-purple-800 text-center">
+                                    💎 Complete all 4 missions for +200 bonus tokens + 1 FREE Hint!
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 );
             };
 
@@ -2453,6 +2700,9 @@
                                 </div>
                                 <XPBar />
                             </div>
+
+                            {/* Daily Missions */}
+                            <DailyMissionsPanel />
 
                             {/* Chapter Selection */}
                             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
