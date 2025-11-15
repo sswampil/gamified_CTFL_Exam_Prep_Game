@@ -808,8 +808,39 @@
             6: { name: "Tool Support for Testing", questionCount: 6 }
         };
 
+        // Achievement Definitions
+        const achievementList = [
+            // Beginner Achievements
+            { id: 'first-steps', name: 'First Steps', desc: 'Answer your first question', emoji: '👶', category: 'beginner' },
+            { id: 'getting-started', name: 'Getting Started', desc: 'Answer 10 questions', emoji: '🌱', category: 'beginner' },
+            { id: 'committed', name: 'Committed', desc: 'Answer 50 questions', emoji: '💪', category: 'beginner' },
+            { id: 'dedicated', name: 'Dedicated', desc: 'Answer 100 questions', emoji: '🏆', category: 'beginner' },
+            { id: 'week-warrior', name: 'Week Warrior', desc: 'Maintain a 7-day streak', emoji: '🔥', category: 'beginner' },
+
+            // Chapter Master Achievements
+            { id: 'chapter-1-master', name: 'Chapter 1 Master', desc: '90%+ accuracy on Chapter 1 (min 10 questions)', emoji: '📘', category: 'chapter' },
+            { id: 'chapter-2-master', name: 'Chapter 2 Master', desc: '90%+ accuracy on Chapter 2 (min 10 questions)', emoji: '📗', category: 'chapter' },
+            { id: 'chapter-3-master', name: 'Chapter 3 Master', desc: '90%+ accuracy on Chapter 3 (min 10 questions)', emoji: '📙', category: 'chapter' },
+            { id: 'chapter-4-master', name: 'Chapter 4 Master', desc: '90%+ accuracy on Chapter 4 (min 10 questions)', emoji: '📕', category: 'chapter' },
+            { id: 'chapter-5-master', name: 'Chapter 5 Master', desc: '90%+ accuracy on Chapter 5 (min 10 questions)', emoji: '📔', category: 'chapter' },
+            { id: 'chapter-6-master', name: 'Chapter 6 Master', desc: '90%+ accuracy on Chapter 6 (min 10 questions)', emoji: '📒', category: 'chapter' },
+
+            // Skill-Based Achievements
+            { id: 'perfectionist', name: 'Perfectionist', desc: 'Get 10 questions correct in a row', emoji: '✨', category: 'skill' },
+            { id: 'speed-demon', name: 'Speed Demon', desc: 'Answer 5 questions in under 2 minutes (all correct)', emoji: '⚡', category: 'skill' },
+            { id: 'k3-killer', name: 'K3 Killer', desc: 'Get 20 K3 questions correct', emoji: '🎯', category: 'skill' },
+            { id: 'principle-expert', name: 'Principle Expert', desc: 'Get all 7 Testing Principles questions correct', emoji: '🧠', category: 'skill' },
+            { id: 'full-stack', name: 'Full Stack Tester', desc: 'Answer at least 10 questions from each chapter', emoji: '🌟', category: 'skill' },
+
+            // Fun Achievements
+            { id: 'early-bird', name: 'Early Bird', desc: 'Study before 8 AM', emoji: '🌅', category: 'fun' },
+            { id: 'night-owl', name: 'Night Owl', desc: 'Study after 10 PM', emoji: '🦉', category: 'fun' },
+            { id: 'weekend-warrior', name: 'Weekend Warrior', desc: 'Study on Saturday or Sunday', emoji: '🎮', category: 'fun' },
+            { id: 'century-club', name: 'Century Club', desc: 'Earn 1000 total XP', emoji: '💯', category: 'fun' }
+        ];
+
         function QuizApp() {
-            const [currentScreen, setCurrentScreen] = useState('home'); // 'home' or 'quiz'
+            const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'quiz', or 'achievements'
             const [selectedMode, setSelectedMode] = useState(null); // 'all' or chapter number
             const [quizQuestions, setQuizQuestions] = useState([]);
             const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -830,6 +861,13 @@
             const [streakHistory, setStreakHistory] = useState([]);
             const [showMilestone, setShowMilestone] = useState(false);
             const [milestoneData, setMilestoneData] = useState({ days: 0, message: '', xp: 0 });
+
+            // Achievement State
+            const [achievements, setAchievements] = useState({});
+            const [achievementProgress, setAchievementProgress] = useState({});
+            const [unlockedToast, setUnlockedToast] = useState(null);
+            const [sessionStartTime, setSessionStartTime] = useState(null);
+            const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
 
             // Load chapter stats from localStorage on mount
             useEffect(() => {
@@ -875,6 +913,49 @@
                 }
             }, []);
 
+            // Load achievements from localStorage
+            useEffect(() => {
+                const savedAchievements = localStorage.getItem('ctfl-achievements');
+                const savedProgress = localStorage.getItem('ctfl-achievement-progress');
+
+                if (savedAchievements) {
+                    try {
+                        setAchievements(JSON.parse(savedAchievements));
+                    } catch (e) {
+                        console.error('Error loading achievements:', e);
+                    }
+                }
+
+                if (savedProgress) {
+                    try {
+                        setAchievementProgress(JSON.parse(savedProgress));
+                    } catch (e) {
+                        console.error('Error loading achievement progress:', e);
+                    }
+                }
+            }, []);
+
+            // Check time-based achievements on mount
+            useEffect(() => {
+                const hour = new Date().getHours();
+                const day = new Date().getDay();
+
+                // Early Bird (before 8 AM)
+                if (hour < 8) {
+                    unlockAchievement('early-bird');
+                }
+
+                // Night Owl (after 10 PM)
+                if (hour >= 22) {
+                    unlockAchievement('night-owl');
+                }
+
+                // Weekend Warrior (Saturday or Sunday)
+                if (day === 0 || day === 6) {
+                    unlockAchievement('weekend-warrior');
+                }
+            }, []);
+
             // Save chapter stats to localStorage
             const saveChapterStats = (stats) => {
                 localStorage.setItem('ctfl-chapter-stats', JSON.stringify(stats));
@@ -895,6 +976,90 @@
                     history: history
                 };
                 localStorage.setItem('ctfl-streak-data', JSON.stringify(data));
+            };
+
+            // Save achievements to localStorage
+            const saveAchievements = (newAchievements) => {
+                localStorage.setItem('ctfl-achievements', JSON.stringify(newAchievements));
+                setAchievements(newAchievements);
+            };
+
+            // Save achievement progress
+            const saveAchievementProgress = (newProgress) => {
+                localStorage.setItem('ctfl-achievement-progress', JSON.stringify(newProgress));
+                setAchievementProgress(newProgress);
+            };
+
+            // Unlock an achievement
+            const unlockAchievement = (achievementId) => {
+                if (achievements[achievementId]) return; // Already unlocked
+
+                const achievement = achievementList.find(a => a.id === achievementId);
+                if (!achievement) return;
+
+                const newAchievements = { ...achievements, [achievementId]: true };
+                saveAchievements(newAchievements);
+
+                // Show toast notification
+                setUnlockedToast(achievement);
+                setTimeout(() => setUnlockedToast(null), 4000);
+            };
+
+            // Get total questions answered
+            const getTotalQuestionsAnswered = () => {
+                return Object.values(chapterStats).reduce((sum, stat) => sum + (stat.total || 0), 0);
+            };
+
+            // Check all achievements
+            const checkAchievements = () => {
+                const totalAnswered = getTotalQuestionsAnswered();
+
+                // Beginner achievements
+                if (totalAnswered >= 1) unlockAchievement('first-steps');
+                if (totalAnswered >= 10) unlockAchievement('getting-started');
+                if (totalAnswered >= 50) unlockAchievement('committed');
+                if (totalAnswered >= 100) unlockAchievement('dedicated');
+                if (streak >= 7) unlockAchievement('week-warrior');
+
+                // Chapter Master achievements
+                for (let i = 1; i <= 6; i++) {
+                    const chapterStat = chapterStats[i];
+                    if (chapterStat && chapterStat.total >= 10) {
+                        const accuracy = (chapterStat.correct / chapterStat.total) * 100;
+                        if (accuracy >= 90) {
+                            unlockAchievement(`chapter-${i}-master`);
+                        }
+                    }
+                }
+
+                // Perfectionist (10 in a row)
+                if (consecutiveCorrect >= 10) {
+                    unlockAchievement('perfectionist');
+                }
+
+                // K3 Killer (20 K3 correct)
+                const k3Count = achievementProgress.k3Correct || 0;
+                if (k3Count >= 20) {
+                    unlockAchievement('k3-killer');
+                }
+
+                // Full Stack Tester (10+ from each chapter)
+                let hasFullStack = true;
+                for (let i = 1; i <= 6; i++) {
+                    const chapterStat = chapterStats[i];
+                    if (!chapterStat || chapterStat.total < 10) {
+                        hasFullStack = false;
+                        break;
+                    }
+                }
+                if (hasFullStack) {
+                    unlockAchievement('full-stack');
+                }
+
+                // Century Club (1000 XP)
+                if (xp >= 1000 || (achievementProgress.totalXP || 0) >= 1000) {
+                    unlockAchievement('century-club');
+                }
             };
 
             // Get today's date string (YYYY-MM-DD)
@@ -1131,6 +1296,45 @@
                     const earnedXP = getXPForKLevel(currentQuestion.kLevel);
                     awardXP(earnedXP);
                 }
+
+                // Track achievement progress
+                const newProgress = { ...achievementProgress };
+
+                // Track consecutive correct
+                if (isCorrect) {
+                    setConsecutiveCorrect(prev => prev + 1);
+
+                    // Track K3 correct count
+                    if (currentQuestion.kLevel === 'K3') {
+                        newProgress.k3Correct = (newProgress.k3Correct || 0) + 1;
+                    }
+
+                    // Track total XP for Century Club
+                    newProgress.totalXP = (newProgress.totalXP || 0) + getXPForKLevel(currentQuestion.kLevel);
+                } else {
+                    setConsecutiveCorrect(0);
+                }
+
+                // Track Speed Demon (5 questions in under 2 minutes)
+                if (!sessionStartTime) {
+                    setSessionStartTime(Date.now());
+                }
+
+                const answeredCount = Object.keys(answeredQuestions).length + 1;
+                if (answeredCount === 5 && isCorrect) {
+                    const timeElapsed = (Date.now() - sessionStartTime) / 1000 / 60; // minutes
+                    const allCorrect = Object.values({...answeredQuestions, [currentQuestion.id]: {correct: isCorrect}})
+                        .filter(a => a.correct).length === 5;
+
+                    if (timeElapsed < 2 && allCorrect) {
+                        unlockAchievement('speed-demon');
+                    }
+                }
+
+                saveAchievementProgress(newProgress);
+
+                // Check achievements
+                setTimeout(() => checkAchievements(), 500);
             };
 
             const handleNextQuestion = () => {
@@ -1225,6 +1429,24 @@
                 </div>
             );
 
+            // Toast Notification Component
+            const AchievementToast = ({ achievement }) => {
+                if (!achievement) return null;
+
+                return (
+                    <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-yellow-400 to-yellow-500 text-gray-900 rounded-lg shadow-2xl p-6 max-w-sm animate-bounce">
+                        <div className="flex items-center gap-4">
+                            <div className="text-5xl">{achievement.emoji}</div>
+                            <div>
+                                <p className="text-sm font-semibold text-yellow-900">Achievement Unlocked!</p>
+                                <h3 className="text-xl font-bold">{achievement.name}</h3>
+                                <p className="text-sm text-gray-800">{achievement.desc}</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             // Streak Counter Component
             const StreakCounter = () => {
                 if (streak === 0) {
@@ -1240,6 +1462,22 @@
                         <span className="text-2xl mr-1">🔥</span>
                         <span>{streak} day{streak !== 1 ? 's' : ''}</span>
                     </div>
+                );
+            };
+
+            // Badge Counter Component
+            const BadgeCounter = () => {
+                const unlockedCount = Object.keys(achievements).length;
+                const totalCount = achievementList.length;
+
+                return (
+                    <button
+                        onClick={() => setCurrentScreen('achievements')}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg px-4 py-2 text-white font-bold shadow-md hover:from-purple-600 hover:to-pink-600 transition-all"
+                    >
+                        <span className="text-2xl mr-1">🏅</span>
+                        <span>{unlockedCount}/{totalCount}</span>
+                    </button>
                 );
             };
 
@@ -1325,11 +1563,140 @@
                 );
             };
 
+            // Achievements Screen Component
+            if (currentScreen === 'achievements') {
+                const getProgress = (achievementId) => {
+                    const totalAnswered = getTotalQuestionsAnswered();
+
+                    switch(achievementId) {
+                        case 'getting-started': return `${Math.min(totalAnswered, 10)}/10`;
+                        case 'committed': return `${Math.min(totalAnswered, 50)}/50`;
+                        case 'dedicated': return `${Math.min(totalAnswered, 100)}/100`;
+                        case 'week-warrior': return `${Math.min(streak, 7)}/7 days`;
+                        case 'perfectionist': return `${Math.min(consecutiveCorrect, 10)}/10`;
+                        case 'k3-killer': return `${Math.min(achievementProgress.k3Correct || 0, 20)}/20`;
+                        case 'century-club': {
+                            const totalXP = achievementProgress.totalXP || xp;
+                            return `${Math.min(totalXP, 1000)}/1000 XP`;
+                        }
+                        default:
+                            for (let i = 1; i <= 6; i++) {
+                                if (achievementId === `chapter-${i}-master`) {
+                                    const stat = chapterStats[i];
+                                    if (!stat) return '0/10 questions';
+                                    const accuracy = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                                    return `${accuracy}% (${stat.total}/10 min)`;
+                                }
+                            }
+                            return null;
+                    }
+                };
+
+                const groupedAchievements = {
+                    beginner: achievementList.filter(a => a.category === 'beginner'),
+                    chapter: achievementList.filter(a => a.category === 'chapter'),
+                    skill: achievementList.filter(a => a.category === 'skill'),
+                    fun: achievementList.filter(a => a.category === 'fun')
+                };
+
+                const categoryNames = {
+                    beginner: 'Beginner',
+                    chapter: 'Chapter Master',
+                    skill: 'Skill-Based',
+                    fun: 'Fun'
+                };
+
+                return (
+                    <div className="min-h-screen py-8 px-4">
+                        <div className="max-w-6xl mx-auto">
+                            <AchievementToast achievement={unlockedToast} />
+
+                            {/* Header */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Achievements</h1>
+                                        <p className="text-gray-600">
+                                            {Object.keys(achievements).length} / {achievementList.length} Unlocked
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Achievement Categories */}
+                            {Object.entries(groupedAchievements).map(([category, achList]) => (
+                                <div key={category} className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800 mb-6">{categoryNames[category]}</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {achList.map(achievement => {
+                                            const isUnlocked = achievements[achievement.id];
+                                            const progress = getProgress(achievement.id);
+
+                                            return (
+                                                <div
+                                                    key={achievement.id}
+                                                    className={`p-6 rounded-lg border-2 transition-all ${
+                                                        isUnlocked
+                                                            ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100'
+                                                            : 'border-gray-300 bg-gray-100'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start gap-4">
+                                                        <div className={`text-5xl ${isUnlocked ? '' : 'grayscale opacity-40'}`}>
+                                                            {achievement.emoji}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h3 className={`text-lg font-bold mb-1 ${
+                                                                isUnlocked ? 'text-gray-900' : 'text-gray-500'
+                                                            }`}>
+                                                                {achievement.name}
+                                                            </h3>
+                                                            <p className={`text-sm mb-2 ${
+                                                                isUnlocked ? 'text-gray-700' : 'text-gray-400'
+                                                            }`}>
+                                                                {achievement.desc}
+                                                            </p>
+                                                            {!isUnlocked && progress && (
+                                                                <div className="mt-2">
+                                                                    <p className="text-xs font-semibold text-blue-600">
+                                                                        Progress: {progress}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {isUnlocked && (
+                                                                <div className="mt-2">
+                                                                    <span className="inline-block px-3 py-1 bg-yellow-500 text-white text-xs font-bold rounded-full">
+                                                                        UNLOCKED
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
+
             // Home Screen Component
             if (currentScreen === 'home') {
                 return (
                     <div className="min-h-screen py-8 px-4">
                         <div className="max-w-4xl mx-auto">
+                            {/* Toast */}
+                            <AchievementToast achievement={unlockedToast} />
+
                             {/* Modals */}
                             {showMilestone && <MilestoneModal />}
 
@@ -1344,7 +1711,8 @@
                                             Certified Tester Foundation Level Exam Preparation
                                         </p>
                                     </div>
-                                    <div className="ml-4">
+                                    <div className="ml-4 flex gap-3">
+                                        <BadgeCounter />
                                         <StreakCounter />
                                     </div>
                                 </div>
@@ -1464,6 +1832,9 @@
             return (
                 <div className="min-h-screen py-8 px-4">
                     <div className="max-w-3xl mx-auto">
+                        {/* Toast */}
+                        <AchievementToast achievement={unlockedToast} />
+
                         {/* Modals */}
                         {showLevelUp && <LevelUpModal />}
                         {showMilestone && <MilestoneModal />}
