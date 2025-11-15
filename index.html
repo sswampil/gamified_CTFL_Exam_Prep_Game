@@ -824,6 +824,13 @@
             const [showLevelUp, setShowLevelUp] = useState(false);
             const [xpGain, setXpGain] = useState(null);
 
+            // Streak State
+            const [streak, setStreak] = useState(0);
+            const [lastLoginDate, setLastLoginDate] = useState(null);
+            const [streakHistory, setStreakHistory] = useState([]);
+            const [showMilestone, setShowMilestone] = useState(false);
+            const [milestoneData, setMilestoneData] = useState({ days: 0, message: '', xp: 0 });
+
             // Load chapter stats from localStorage on mount
             useEffect(() => {
                 const saved = localStorage.getItem('ctfl-chapter-stats');
@@ -851,6 +858,23 @@
                 }
             }, []);
 
+            // Load and check streak on mount
+            useEffect(() => {
+                const savedStreak = localStorage.getItem('ctfl-streak-data');
+                if (savedStreak) {
+                    try {
+                        const data = JSON.parse(savedStreak);
+                        setStreakHistory(data.history || []);
+                        checkDailyLogin(data.lastLogin, data.streak, data.history || []);
+                    } catch (e) {
+                        console.error('Error loading streak data:', e);
+                        checkDailyLogin(null, 0, []);
+                    }
+                } else {
+                    checkDailyLogin(null, 0, []);
+                }
+            }, []);
+
             // Save chapter stats to localStorage
             const saveChapterStats = (stats) => {
                 localStorage.setItem('ctfl-chapter-stats', JSON.stringify(stats));
@@ -861,6 +885,92 @@
             const saveRPGProgress = (newXp, newLevel) => {
                 const data = { xp: newXp, level: newLevel };
                 localStorage.setItem('ctfl-rpg-progress', JSON.stringify(data));
+            };
+
+            // Save streak data to localStorage
+            const saveStreakData = (currentStreak, loginDate, history) => {
+                const data = {
+                    streak: currentStreak,
+                    lastLogin: loginDate,
+                    history: history
+                };
+                localStorage.setItem('ctfl-streak-data', JSON.stringify(data));
+            };
+
+            // Get today's date string (YYYY-MM-DD)
+            const getTodayString = () => {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            };
+
+            // Get date difference in days
+            const getDaysDifference = (date1Str, date2Str) => {
+                const date1 = new Date(date1Str);
+                const date2 = new Date(date2Str);
+                const diffTime = Math.abs(date2 - date1);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            // Check daily login and update streak
+            const checkDailyLogin = (lastLogin, currentStreak, history) => {
+                const today = getTodayString();
+
+                if (!lastLogin) {
+                    // First time user
+                    const newHistory = [...history, today];
+                    setStreak(1);
+                    setLastLoginDate(today);
+                    setStreakHistory(newHistory);
+                    saveStreakData(1, today, newHistory);
+                    return;
+                }
+
+                if (lastLogin === today) {
+                    // Already logged in today
+                    setStreak(currentStreak);
+                    setLastLoginDate(lastLogin);
+                    return;
+                }
+
+                const daysDiff = getDaysDifference(lastLogin, today);
+
+                if (daysDiff === 1) {
+                    // Consecutive day - increment streak
+                    const newStreak = currentStreak + 1;
+                    const newHistory = [...history, today];
+                    setStreak(newStreak);
+                    setLastLoginDate(today);
+                    setStreakHistory(newHistory);
+                    saveStreakData(newStreak, today, newHistory);
+
+                    // Check for milestones
+                    checkStreakMilestone(newStreak);
+                } else {
+                    // Missed days - reset streak
+                    const newHistory = [...history, today];
+                    setStreak(1);
+                    setLastLoginDate(today);
+                    setStreakHistory(newHistory);
+                    saveStreakData(1, today, newHistory);
+                }
+            };
+
+            // Check if streak hit a milestone
+            const checkStreakMilestone = (currentStreak) => {
+                const milestones = [
+                    { days: 7, message: 'One Week Strong!', xp: 500 },
+                    { days: 14, message: 'Two Weeks Strong!', xp: 1000 },
+                    { days: 30, message: 'One Month Champion!', xp: 3000 }
+                ];
+
+                const milestone = milestones.find(m => m.days === currentStreak);
+                if (milestone) {
+                    setMilestoneData(milestone);
+                    setShowMilestone(true);
+                    awardXP(milestone.xp);
+                    createConfetti();
+                }
             };
 
             // Get XP for K-level
@@ -1093,6 +1203,102 @@
                 </div>
             );
 
+            // Streak Milestone Modal Component
+            const MilestoneModal = () => (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="level-up-modal bg-white rounded-lg shadow-2xl p-8 max-w-md w-full text-center">
+                        <div className="text-6xl mb-4">🔥</div>
+                        <h2 className="text-4xl font-bold text-gray-800 mb-2">STREAK MILESTONE!</h2>
+                        <p className="text-2xl text-orange-600 font-bold mb-2">{milestoneData.days} Days</p>
+                        <p className="text-xl text-gray-700 mb-4">{milestoneData.message}</p>
+                        <div className="bg-green-100 border-2 border-green-300 rounded-lg p-4 mb-6">
+                            <p className="text-lg font-bold text-green-800">Bonus Reward!</p>
+                            <p className="text-2xl font-bold text-green-600">+{milestoneData.xp} XP</p>
+                        </div>
+                        <button
+                            onClick={() => setShowMilestone(false)}
+                            className="px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors"
+                        >
+                            Amazing!
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // Streak Counter Component
+            const StreakCounter = () => {
+                if (streak === 0) {
+                    return (
+                        <div className="bg-gray-100 rounded-lg px-4 py-2 text-sm">
+                            <span className="text-gray-600">Start your streak today!</span>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg px-4 py-2 text-white font-bold shadow-md">
+                        <span className="text-2xl mr-1">🔥</span>
+                        <span>{streak} day{streak !== 1 ? 's' : ''}</span>
+                    </div>
+                );
+            };
+
+            // 30-Day Calendar Component
+            const StreakCalendar = () => {
+                const getLast30Days = () => {
+                    const days = [];
+                    const today = new Date();
+
+                    for (let i = 29; i >= 0; i--) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        days.push({
+                            date: dateStr,
+                            day: date.getDate(),
+                            active: streakHistory.includes(dateStr)
+                        });
+                    }
+                    return days;
+                };
+
+                const days = getLast30Days();
+
+                return (
+                    <div className="bg-white rounded-lg shadow-lg p-6">
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                            <span className="text-2xl">📅</span>
+                            Last 30 Days Activity
+                        </h3>
+                        <div className="grid grid-cols-10 gap-2">
+                            {days.map((day, index) => (
+                                <div
+                                    key={index}
+                                    className={`aspect-square rounded flex items-center justify-center text-xs font-semibold ${
+                                        day.active
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-gray-200 text-gray-400'
+                                    }`}
+                                    title={day.date}
+                                >
+                                    {day.day}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 flex gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                                <span className="text-gray-700">Studied</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <span className="text-gray-700">Missed</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             // XP Bar Component
             const XPBar = () => {
                 const xpNeeded = getXPForNextLevel(level);
@@ -1124,14 +1330,24 @@
                 return (
                     <div className="min-h-screen py-8 px-4">
                         <div className="max-w-4xl mx-auto">
+                            {/* Modals */}
+                            {showMilestone && <MilestoneModal />}
+
                             {/* Header */}
-                            <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
-                                <h1 className="text-4xl font-bold text-gray-800 mb-3">
-                                    CTFL Quiz App
-                                </h1>
-                                <p className="text-gray-600 text-lg mb-6">
-                                    Certified Tester Foundation Level Exam Preparation
-                                </p>
+                            <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="text-center flex-1">
+                                        <h1 className="text-4xl font-bold text-gray-800 mb-3">
+                                            CTFL Quiz App
+                                        </h1>
+                                        <p className="text-gray-600 text-lg mb-6">
+                                            Certified Tester Foundation Level Exam Preparation
+                                        </p>
+                                    </div>
+                                    <div className="ml-4">
+                                        <StreakCounter />
+                                    </div>
+                                </div>
                                 <XPBar />
                             </div>
 
@@ -1212,6 +1428,11 @@
                                 </div>
                             </div>
 
+                            {/* Streak Calendar */}
+                            <div className="mb-6">
+                                <StreakCalendar />
+                            </div>
+
                             {/* Legend */}
                             <div className="bg-white rounded-lg shadow-lg p-6">
                                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Performance Legend</h3>
@@ -1243,8 +1464,9 @@
             return (
                 <div className="min-h-screen py-8 px-4">
                     <div className="max-w-3xl mx-auto">
-                        {/* Level Up Modal */}
+                        {/* Modals */}
                         {showLevelUp && <LevelUpModal />}
+                        {showMilestone && <MilestoneModal />}
 
                         {/* XP Gain Animation */}
                         {xpGain && (
@@ -1256,7 +1478,7 @@
                         {/* Header */}
                         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <div className="flex justify-between items-center mb-4">
-                                <div>
+                                <div className="flex-1">
                                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
                                         CTFL Quiz
                                     </h1>
@@ -1266,12 +1488,15 @@
                                             : `Chapter ${selectedMode}: ${chapterInfo[selectedMode].name}`}
                                     </p>
                                 </div>
-                                <button
-                                    onClick={handleBackToMenu}
-                                    className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                                >
-                                    ← Back to Menu
-                                </button>
+                                <div className="flex gap-3 items-center">
+                                    <StreakCounter />
+                                    <button
+                                        onClick={handleBackToMenu}
+                                        className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                    >
+                                        ← Back to Menu
+                                    </button>
+                                </div>
                             </div>
 
                             {/* XP Bar */}
