@@ -887,6 +887,14 @@
             const [tokenGain, setTokenGain] = useState(null);
             const [dailyLoginRewarded, setDailyLoginRewarded] = useState(false);
 
+            // Exam Mode State
+            const [isExamMode, setIsExamMode] = useState(false);
+            const [examTimeRemaining, setExamTimeRemaining] = useState(3600); // 60 minutes in seconds
+            const [examStartTime, setExamStartTime] = useState(null);
+            const [showExamWarning, setShowExamWarning] = useState(false);
+            const [examHistory, setExamHistory] = useState([]);
+            const [examResults, setExamResults] = useState(null);
+
             // Load chapter stats from localStorage on mount
             useEffect(() => {
                 const saved = localStorage.getItem('ctfl-chapter-stats');
@@ -1005,6 +1013,39 @@
                 }
             }, []);
 
+            // Load exam history from localStorage
+            useEffect(() => {
+                const savedHistory = localStorage.getItem('ctfl-exam-history');
+                if (savedHistory) {
+                    try {
+                        setExamHistory(JSON.parse(savedHistory));
+                    } catch (e) {
+                        console.error('Error loading exam history:', e);
+                    }
+                }
+            }, []);
+
+            // Countdown timer for exam mode
+            useEffect(() => {
+                if (!isExamMode || !examStartTime) return;
+
+                const timer = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - examStartTime) / 1000);
+                    const remaining = Math.max(0, 3600 - elapsed);
+
+                    setExamTimeRemaining(remaining);
+
+                    // Auto-submit when time runs out
+                    if (remaining === 0) {
+                        clearInterval(timer);
+                        alert('⏰ Time is up! Your exam will be submitted automatically.');
+                        submitExam();
+                    }
+                }, 1000);
+
+                return () => clearInterval(timer);
+            }, [isExamMode, examStartTime]);
+
             // Save chapter stats to localStorage
             const saveChapterStats = (stats) => {
                 localStorage.setItem('ctfl-chapter-stats', JSON.stringify(stats));
@@ -1065,6 +1106,38 @@
                 // Show token gain animation
                 setTokenGain(earnedTokens);
                 setTimeout(() => setTokenGain(null), 1500);
+            };
+
+            // Save exam history to localStorage
+            const saveExamHistory = (newHistory) => {
+                localStorage.setItem('ctfl-exam-history', JSON.stringify(newHistory));
+                setExamHistory(newHistory);
+            };
+
+            // Generate proportional exam questions
+            const generateExamQuestions = () => {
+                // Get questions per chapter (proportional to chapter size)
+                const questionsPerChapter = {
+                    1: 6,  // 8 total questions → ~6 for exam
+                    2: 6,  // 8 total → ~6
+                    3: 6,  // 8 total → ~6
+                    4: 8,  // 10 total → ~8
+                    5: 8,  // 10 total → ~8
+                    6: 6   // 6 total → all 6
+                };
+
+                let examQuestions = [];
+
+                // Get random questions from each chapter
+                for (let chapter = 1; chapter <= 6; chapter++) {
+                    const chapterQuestions = questionBank.filter(q => q.chapter === chapter);
+                    const shuffled = chapterQuestions.sort(() => Math.random() - 0.5);
+                    const selected = shuffled.slice(0, questionsPerChapter[chapter]);
+                    examQuestions = examQuestions.concat(selected);
+                }
+
+                // Shuffle all 40 questions
+                return examQuestions.sort(() => Math.random() - 0.5);
             };
 
             // Unlock an achievement
@@ -1322,6 +1395,103 @@
                 setShowExplanation(false);
                 setEliminatedAnswers({});
                 setCurrentScreen('quiz');
+            };
+
+            // Start exam mode
+            const startExamMode = () => {
+                setShowExamWarning(true);
+            };
+
+            // Confirm and begin exam
+            const confirmStartExam = () => {
+                const questions = generateExamQuestions();
+
+                setQuizQuestions(questions);
+                setSelectedMode('exam');
+                setIsExamMode(true);
+                setCurrentQuestionIndex(0);
+                setAnsweredQuestions({});
+                setSelectedAnswer(null);
+                setShowExplanation(false);
+                setEliminatedAnswers({});
+                setExamTimeRemaining(3600); // 60 minutes
+                setExamStartTime(Date.now());
+                setShowExamWarning(false);
+                setCurrentScreen('quiz');
+            };
+
+            // Submit exam
+            const submitExam = () => {
+                if (!window.confirm('Are you sure you want to submit your exam?')) {
+                    return;
+                }
+
+                // Calculate results
+                const timeTaken = Math.floor((Date.now() - examStartTime) / 1000);
+                const totalQuestions = quizQuestions.length;
+                const correctAnswers = Object.values(answeredQuestions).filter(a => a.correct).length;
+                const score = correctAnswers;
+                const percentage = Math.round((score / totalQuestions) * 100);
+                const passed = score >= 26; // 65% pass rate
+
+                // Calculate chapter breakdown
+                const chapterBreakdown = {};
+                for (let i = 1; i <= 6; i++) {
+                    const chapterQs = quizQuestions.filter(q => q.chapter === i);
+                    const chapterCorrect = chapterQs.filter(q =>
+                        answeredQuestions[q.id] && answeredQuestions[q.id].correct
+                    ).length;
+                    chapterBreakdown[i] = {
+                        total: chapterQs.length,
+                        correct: chapterCorrect,
+                        percentage: chapterQs.length > 0 ? Math.round((chapterCorrect / chapterQs.length) * 100) : 0
+                    };
+                }
+
+                // Calculate XP earned
+                let xpEarned = 0;
+                Object.entries(answeredQuestions).forEach(([questionId, answer]) => {
+                    if (answer.correct) {
+                        const question = quizQuestions.find(q => q.id === parseInt(questionId));
+                        if (question) {
+                            xpEarned += getXPForKLevel(question.kLevel);
+                        }
+                    }
+                });
+
+                // Double XP bonus for passing
+                if (passed) {
+                    xpEarned *= 2;
+                }
+
+                // Award XP
+                awardXP(xpEarned);
+
+                // Save to exam history
+                const examRecord = {
+                    date: new Date().toISOString(),
+                    score: score,
+                    total: totalQuestions,
+                    percentage: percentage,
+                    passed: passed,
+                    timeTaken: timeTaken,
+                    chapterBreakdown: chapterBreakdown
+                };
+
+                const newHistory = [examRecord, ...examHistory].slice(0, 5); // Keep last 5
+                saveExamHistory(newHistory);
+
+                // Set exam results
+                setExamResults({
+                    ...examRecord,
+                    questions: quizQuestions,
+                    answers: answeredQuestions,
+                    xpEarned: xpEarned
+                });
+
+                // Reset exam mode
+                setIsExamMode(false);
+                setCurrentScreen('exam-results');
             };
 
             // Use hint power-up
@@ -1600,6 +1770,63 @@
                 </div>
             );
 
+            // Exam Warning Modal Component
+            const ExamWarningModal = () => {
+                if (!showExamWarning) return null;
+
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
+                            <div className="text-6xl mb-4 text-center">⚠️</div>
+                            <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">CTFL Exam Simulation</h2>
+                            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+                                <p className="text-lg font-semibold text-gray-800 mb-3">This is a timed exam:</p>
+                                <ul className="space-y-2 text-gray-700">
+                                    <li className="flex items-start gap-2">
+                                        <span>⏱️</span>
+                                        <span>60 minutes to complete 40 questions</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>📋</span>
+                                        <span>Questions from all chapters (proportional)</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>🚫</span>
+                                        <span>No immediate feedback during exam</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>↪️</span>
+                                        <span>Cannot go back to previous questions</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>✅</span>
+                                        <span>Pass requires 26/40 (65%)</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>🎁</span>
+                                        <span>Double XP bonus for passing!</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setShowExamWarning(false)}
+                                    className="flex-1 px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-semibold transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmStartExam}
+                                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Start Exam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             // Toast Notification Component
             const AchievementToast = ({ achievement }) => {
                 if (!achievement) return null;
@@ -1613,6 +1840,26 @@
                                 <h3 className="text-xl font-bold">{achievement.name}</h3>
                                 <p className="text-sm text-gray-800">{achievement.desc}</p>
                             </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Exam Timer Component
+            const ExamTimer = () => {
+                const minutes = Math.floor(examTimeRemaining / 60);
+                const seconds = examTimeRemaining % 60;
+                const isLowTime = examTimeRemaining < 600; // Less than 10 minutes
+
+                return (
+                    <div className={`rounded-lg px-6 py-3 text-center font-bold shadow-md ${
+                        isLowTime
+                            ? 'bg-red-500 text-white animate-pulse'
+                            : 'bg-blue-500 text-white'
+                    }`}>
+                        <div className="text-sm">Time Remaining</div>
+                        <div className="text-3xl font-mono">
+                            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                         </div>
                     </div>
                 );
@@ -1746,6 +1993,172 @@
                     </div>
                 );
             };
+
+            // Exam Results Screen Component
+            if (currentScreen === 'exam-results') {
+                const formatTime = (seconds) => {
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    return `${mins}m ${secs}s`;
+                };
+
+                return (
+                    <div className="min-h-screen py-8 px-4">
+                        <div className="max-w-6xl mx-auto">
+                            {/* Header */}
+                            <div className={`rounded-lg shadow-lg p-8 mb-6 ${
+                                examResults.passed
+                                    ? 'bg-gradient-to-r from-green-500 to-green-600'
+                                    : 'bg-gradient-to-r from-red-500 to-red-600'
+                            }`}>
+                                <div className="text-center text-white">
+                                    <div className="text-8xl mb-4">{examResults.passed ? '🎉' : '😔'}</div>
+                                    <h1 className="text-5xl font-bold mb-2">
+                                        {examResults.passed ? 'PASSED!' : 'FAILED'}
+                                    </h1>
+                                    <p className="text-3xl font-bold mb-4">
+                                        {examResults.score}/{examResults.total} ({examResults.percentage}%)
+                                    </p>
+                                    <p className="text-xl">
+                                        {examResults.passed ? 'Congratulations! You passed the CTFL exam simulation!' : 'Keep practicing! You need 26/40 to pass.'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Time Taken</h3>
+                                    <p className="text-3xl font-bold text-blue-600">{formatTime(examResults.timeTaken)}</p>
+                                    <p className="text-sm text-gray-600 mt-1">out of 60 minutes</p>
+                                </div>
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">XP Earned</h3>
+                                    <p className="text-3xl font-bold text-green-600">+{examResults.xpEarned} XP</p>
+                                    {examResults.passed && <p className="text-sm text-gray-600 mt-1">Includes 2x pass bonus!</p>}
+                                </div>
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Result</h3>
+                                    <p className={`text-3xl font-bold ${examResults.passed ? 'text-green-600' : 'text-red-600'}`}>
+                                        {examResults.passed ? 'PASS ✓' : 'FAIL ✗'}
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">Required: 26/40</p>
+                                </div>
+                            </div>
+
+                            {/* Chapter Breakdown */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-6">Chapter Breakdown</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {Object.entries(examResults.chapterBreakdown).map(([chapterNum, data]) => (
+                                        <div key={chapterNum} className="border-2 border-gray-200 rounded-lg p-4">
+                                            <h3 className="font-semibold text-gray-800 mb-2">
+                                                Chapter {chapterNum}: {chapterInfo[chapterNum].name}
+                                            </h3>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-lg font-bold">{data.correct}/{data.total}</span>
+                                                <span className={`text-2xl font-bold ${
+                                                    data.percentage >= 65 ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                    {data.percentage}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Question Review */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-6">Question Review</h2>
+                                <div className="space-y-6">
+                                    {examResults.questions.map((q, index) => {
+                                        const userAnswer = examResults.answers[q.id];
+                                        const isCorrect = userAnswer && userAnswer.correct;
+
+                                        return (
+                                            <div key={q.id} className={`border-2 rounded-lg p-6 ${
+                                                isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
+                                            }`}>
+                                                <div className="flex items-start gap-4 mb-4">
+                                                    <div className={`text-2xl font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {isCorrect ? '✓' : '✗'}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex gap-2 mb-2">
+                                                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                                Q{index + 1}
+                                                            </span>
+                                                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                                                Chapter {q.chapter}
+                                                            </span>
+                                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                                                                {q.kLevel}
+                                                            </span>
+                                                        </div>
+                                                        <h3 className="text-lg font-semibold text-gray-800 mb-3">{q.question}</h3>
+
+                                                        <div className="space-y-2 mb-3">
+                                                            {q.options.map((option, optIndex) => {
+                                                                const isUserChoice = userAnswer && userAnswer.selected === optIndex;
+                                                                const isCorrectAnswer = optIndex === q.correct;
+
+                                                                return (
+                                                                    <div key={optIndex} className={`p-3 rounded border-2 ${
+                                                                        isCorrectAnswer
+                                                                            ? 'border-green-500 bg-green-100'
+                                                                            : isUserChoice
+                                                                            ? 'border-red-500 bg-red-100'
+                                                                            : 'border-gray-300'
+                                                                    }`}>
+                                                                        <span className="font-semibold mr-2">
+                                                                            {['A', 'B', 'C', 'D'][optIndex]}.
+                                                                        </span>
+                                                                        {option}
+                                                                        {isCorrectAnswer && <span className="ml-2 text-green-600 font-bold">✓ Correct</span>}
+                                                                        {isUserChoice && !isCorrectAnswer && <span className="ml-2 text-red-600 font-bold">✗ Your Answer</span>}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+
+                                                        <div className="bg-blue-50 border-2 border-blue-200 rounded p-3">
+                                                            <p className="text-sm font-semibold text-blue-900 mb-1">Explanation:</p>
+                                                            <p className="text-sm text-gray-700">{q.explanation}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => {
+                                        setExamResults(null);
+                                        setCurrentScreen('home');
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Back to Home
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setExamResults(null);
+                                        startExamMode();
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Take Another Exam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             // Shop Screen Component
             if (currentScreen === 'shop') {
@@ -2019,6 +2432,7 @@
 
                             {/* Modals */}
                             {showMilestone && <MilestoneModal />}
+                            <ExamWarningModal />
 
                             {/* Header */}
                             <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
@@ -2047,6 +2461,27 @@
                                 </h2>
 
                                 <div className="space-y-4">
+                                    {/* Exam Mode Button */}
+                                    <button
+                                        onClick={startExamMode}
+                                        className="w-full p-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02] border-4 border-yellow-400"
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <div className="text-left">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-2xl">🎓</span>
+                                                    <h3 className="text-xl font-bold">EXAM MODE</h3>
+                                                    <span className="px-2 py-1 bg-yellow-400 text-purple-900 text-xs rounded-full font-bold">NEW</span>
+                                                </div>
+                                                <p className="text-purple-100 text-sm">60-minute timed exam simulation - 40 questions</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-2xl font-bold">⏱️</div>
+                                                <div className="text-sm text-purple-100">60 min</div>
+                                            </div>
+                                        </div>
+                                    </button>
+
                                     {/* All Topics Button */}
                                     <button
                                         onClick={() => startQuiz('all')}
@@ -2179,28 +2614,38 @@
                             <div className="flex justify-between items-center mb-4">
                                 <div className="flex-1">
                                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-                                        CTFL Quiz
+                                        {isExamMode ? '🎓 CTFL Exam Simulation' : 'CTFL Quiz'}
                                     </h1>
                                     <p className="text-sm text-gray-600 mt-1">
-                                        {selectedMode === 'all'
+                                        {isExamMode
+                                            ? 'Timed Exam - No immediate feedback'
+                                            : selectedMode === 'all'
                                             ? 'All Topics - Mixed Questions'
+                                            : selectedMode === 'exam'
+                                            ? 'Exam Mode'
                                             : `Chapter ${selectedMode}: ${chapterInfo[selectedMode].name}`}
                                     </p>
                                 </div>
                                 <div className="flex gap-3 items-center">
-                                    <TokenCounter />
-                                    <StreakCounter />
-                                    <button
-                                        onClick={handleBackToMenu}
-                                        className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                                    >
-                                        ← Back to Menu
-                                    </button>
+                                    {isExamMode ? (
+                                        <ExamTimer />
+                                    ) : (
+                                        <>
+                                            <TokenCounter />
+                                            <StreakCounter />
+                                            <button
+                                                onClick={handleBackToMenu}
+                                                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                            >
+                                                ← Back to Menu
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
                             {/* XP Bar */}
-                            <XPBar />
+                            {!isExamMode && <XPBar />}
 
                             {/* Progress Bar */}
                             <div className="mb-4">
@@ -2236,7 +2681,7 @@
                         </div>
 
                         {/* Power-Ups Section */}
-                        {!isQuestionAnswered && (
+                        {!isExamMode && !isQuestionAnswered && (
                             <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg shadow-lg p-4 mb-6">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Power-Ups</h3>
                                 <div className="flex gap-3 flex-wrap">
@@ -2294,7 +2739,7 @@
                             </div>
 
                             {/* Feedback and Explanation */}
-                            {isQuestionAnswered && (
+                            {!isExamMode && isQuestionAnswered && (
                                 <div className={`p-4 rounded-lg ${
                                     answeredQuestions[currentQuestion.id].correct
                                         ? 'bg-green-50 border-2 border-green-200'
@@ -2315,35 +2760,75 @@
                                     </p>
                                 </div>
                             )}
-                        </div>
 
-                        {/* Navigation Buttons */}
-                        <div className="flex gap-4">
-                            <button
-                                onClick={handlePreviousQuestion}
-                                disabled={currentQuestionIndex === 0}
-                                className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
-                                    currentQuestionIndex === 0
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
-                                }`}
-                            >
-                                ← Previous
-                            </button>
-
-                            {currentQuestionIndex < totalQuestions - 1 ? (
-                                <button
-                                    onClick={handleNextQuestion}
-                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-                                >
-                                    Next Question →
-                                </button>
-                            ) : (
-                                <div className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold text-center">
-                                    Quiz Complete! Final Score: {score}/{totalQuestions}
+                            {/* Exam Mode Feedback */}
+                            {isExamMode && isQuestionAnswered && (
+                                <div className="p-4 rounded-lg bg-blue-50 border-2 border-blue-200">
+                                    <p className="font-semibold text-blue-800">✓ Answer recorded</p>
+                                    <p className="text-sm text-gray-700 mt-1">You'll see results after submitting the exam.</p>
                                 </div>
                             )}
                         </div>
+
+                        {/* Navigation Buttons */}
+                        {isExamMode ? (
+                            // Exam Mode Navigation
+                            <div className="flex gap-4">
+                                {currentQuestionIndex < totalQuestions - 1 ? (
+                                    <button
+                                        onClick={handleNextQuestion}
+                                        disabled={!isQuestionAnswered}
+                                        className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                                            isQuestionAnswered
+                                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        Next Question →
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={submitExam}
+                                        disabled={!isQuestionAnswered}
+                                        className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                                            isQuestionAnswered
+                                                ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        Submit Exam
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            // Regular Quiz Navigation
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handlePreviousQuestion}
+                                    disabled={currentQuestionIndex === 0}
+                                    className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                                        currentQuestionIndex === 0
+                                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+                                    }`}
+                                >
+                                    ← Previous
+                                </button>
+
+                                {currentQuestionIndex < totalQuestions - 1 ? (
+                                    <button
+                                        onClick={handleNextQuestion}
+                                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                    >
+                                        Next Question →
+                                    </button>
+                                ) : (
+                                    <div className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold text-center">
+                                        Quiz Complete! Final Score: {score}/{totalQuestions}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Question Overview */}
                         <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
@@ -2357,21 +2842,26 @@
                                         <button
                                             key={q.id}
                                             onClick={() => {
-                                                setCurrentQuestionIndex(index);
-                                                setSelectedAnswer(null);
-                                                setShowExplanation(false);
+                                                if (!isExamMode) {
+                                                    setCurrentQuestionIndex(index);
+                                                    setSelectedAnswer(null);
+                                                    setShowExplanation(false);
+                                                }
                                             }}
+                                            disabled={isExamMode}
                                             className={`aspect-square rounded flex items-center justify-center text-sm font-semibold transition-all ${
                                                 isCurrent
                                                     ? 'ring-2 ring-blue-500 ring-offset-2'
                                                     : ''
                                             } ${
-                                                !isAnswered
-                                                    ? 'bg-gray-200 hover:bg-gray-300'
-                                                    : isAnswered.correct
-                                                    ? 'bg-green-500 text-white'
-                                                    : 'bg-red-500 text-white'
-                                            }`}
+                                                isExamMode
+                                                    ? (isAnswered ? 'bg-blue-500 text-white' : 'bg-gray-200')
+                                                    : (!isAnswered
+                                                        ? 'bg-gray-200 hover:bg-gray-300'
+                                                        : isAnswered.correct
+                                                        ? 'bg-green-500 text-white'
+                                                        : 'bg-red-500 text-white')
+                                            } ${isExamMode ? 'cursor-default' : ''}`}
                                         >
                                             {index + 1}
                                         </button>
@@ -2379,18 +2869,33 @@
                                 })}
                             </div>
                             <div className="mt-4 flex gap-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-green-500 rounded"></div>
-                                    <span>Correct</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-red-500 rounded"></div>
-                                    <span>Incorrect</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                    <span>Unanswered</span>
-                                </div>
+                                {isExamMode ? (
+                                    <>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                                            <span>Answered</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                            <span>Unanswered</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-green-500 rounded"></div>
+                                            <span>Correct</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-red-500 rounded"></div>
+                                            <span>Incorrect</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                            <span>Unanswered</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
