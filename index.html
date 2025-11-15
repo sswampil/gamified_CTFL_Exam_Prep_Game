@@ -1153,6 +1153,33 @@
             ]
         };
 
+        // Rank System
+        const rankSystem = [
+            { name: 'Apprentice Tester', minXP: 0, maxXP: 999, tier: 'Bronze', color: 'from-amber-700 to-amber-900', icon: '🥉', bgColor: 'bg-amber-50', borderColor: 'border-amber-500' },
+            { name: 'Skilled Tester', minXP: 1000, maxXP: 2499, tier: 'Silver', color: 'from-gray-400 to-gray-600', icon: '🥈', bgColor: 'bg-gray-50', borderColor: 'border-gray-400' },
+            { name: 'Expert Tester', minXP: 2500, maxXP: 4999, tier: 'Gold', color: 'from-yellow-400 to-yellow-600', icon: '🥇', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-500' },
+            { name: 'Master Tester', minXP: 5000, maxXP: 9999, tier: 'Platinum', color: 'from-cyan-400 to-blue-600', icon: '💎', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-500' },
+            { name: 'Elite Tester', minXP: 10000, maxXP: Infinity, tier: 'Diamond', color: 'from-purple-500 to-pink-600', icon: '👑', bgColor: 'bg-purple-50', borderColor: 'border-purple-500' }
+        ];
+
+        const getRank = (totalXP) => {
+            for (let i = rankSystem.length - 1; i >= 0; i--) {
+                if (totalXP >= rankSystem[i].minXP) {
+                    return rankSystem[i];
+                }
+            }
+            return rankSystem[0];
+        };
+
+        const getNextRank = (totalXP) => {
+            const currentRank = getRank(totalXP);
+            const currentIndex = rankSystem.findIndex(r => r.name === currentRank.name);
+            if (currentIndex < rankSystem.length - 1) {
+                return rankSystem[currentIndex + 1];
+            }
+            return null;
+        };
+
         function QuizApp() {
             const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'quiz', 'achievements', or 'shop'
             const [selectedMode, setSelectedMode] = useState(null); // 'all' or chapter number
@@ -1234,6 +1261,15 @@
             const [friendCodeInput, setFriendCodeInput] = useState('');
             const [showShareCard, setShowShareCard] = useState(false);
             const [friendData, setFriendData] = useState(null);
+
+            // Leaderboard State
+            const [studySessions, setStudySessions] = useState([]);
+            const [weeklyChallenge, setWeeklyChallenge] = useState({
+                weekStart: null,
+                goal: 2000,
+                progress: 0,
+                completed: false
+            });
 
             // Load settings from localStorage and apply dark mode
             useEffect(() => {
@@ -1672,6 +1708,90 @@
                     }
                 }
             }, []);
+
+            // Load study sessions from localStorage
+            useEffect(() => {
+                const savedSessions = localStorage.getItem('ctfl-study-sessions');
+                if (savedSessions) {
+                    try {
+                        setStudySessions(JSON.parse(savedSessions));
+                    } catch (e) {
+                        console.error('Error loading study sessions:', e);
+                    }
+                }
+            }, []);
+
+            // Load and check weekly challenge
+            useEffect(() => {
+                const savedChallenge = localStorage.getItem('ctfl-weekly-challenge');
+                const today = new Date();
+                const currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay())).toISOString().split('T')[0];
+
+                if (savedChallenge) {
+                    try {
+                        const data = JSON.parse(savedChallenge);
+
+                        // Check if it's a new week
+                        if (data.weekStart !== currentWeekStart) {
+                            // Reset for new week
+                            const newChallenge = {
+                                weekStart: currentWeekStart,
+                                goal: 2000,
+                                progress: 0,
+                                completed: false
+                            };
+                            setWeeklyChallenge(newChallenge);
+                            localStorage.setItem('ctfl-weekly-challenge', JSON.stringify(newChallenge));
+                        } else {
+                            setWeeklyChallenge(data);
+                        }
+                    } catch (e) {
+                        console.error('Error loading weekly challenge:', e);
+                    }
+                } else {
+                    // Initialize new weekly challenge
+                    const newChallenge = {
+                        weekStart: currentWeekStart,
+                        goal: 2000,
+                        progress: 0,
+                        completed: false
+                    };
+                    setWeeklyChallenge(newChallenge);
+                    localStorage.setItem('ctfl-weekly-challenge', JSON.stringify(newChallenge));
+                }
+            }, []);
+
+            // Save study session helper
+            const saveStudySession = (sessionData) => {
+                const newSessions = [...studySessions, sessionData];
+                // Keep only top 50 sessions, sorted by score/XP
+                const sortedSessions = newSessions.sort((a, b) => b.score - a.score).slice(0, 50);
+                setStudySessions(sortedSessions);
+                localStorage.setItem('ctfl-study-sessions', JSON.stringify(sortedSessions));
+            };
+
+            // Update weekly challenge progress
+            const updateWeeklyChallengeProgress = (earnedXP) => {
+                if (!weeklyChallenge.completed) {
+                    const newProgress = weeklyChallenge.progress + earnedXP;
+                    const completed = newProgress >= weeklyChallenge.goal;
+
+                    const updatedChallenge = {
+                        ...weeklyChallenge,
+                        progress: newProgress,
+                        completed
+                    };
+
+                    setWeeklyChallenge(updatedChallenge);
+                    localStorage.setItem('ctfl-weekly-challenge', JSON.stringify(updatedChallenge));
+
+                    // Award bonus if just completed
+                    if (completed && !weeklyChallenge.completed) {
+                        awardTokens(500);
+                        alert('🎉 Weekly Challenge Completed! +500 Bonus Tokens!');
+                    }
+                }
+            };
 
             // Countdown timer for exam mode
             useEffect(() => {
@@ -2208,6 +2328,9 @@
                 setLevel(newLevel);
                 saveRPGProgress(newXp, newLevel);
 
+                // Update weekly challenge progress
+                updateWeeklyChallengeProgress(earnedXP);
+
                 // Show XP gain animation
                 setXpGain(earnedXP);
                 setTimeout(() => setXpGain(null), 1500);
@@ -2261,6 +2384,7 @@
                 setSelectedAnswer(null);
                 setShowExplanation(false);
                 setEliminatedAnswers({});
+                setSessionStartTime(Date.now()); // Track session start time
                 setCurrentScreen('quiz');
             };
 
@@ -2582,6 +2706,42 @@
                         }
                     }
 
+                    // Save study session for leaderboard
+                    if (sessionStartTime && Object.keys(answeredQuestions).length > 0) {
+                        const timeElapsed = Math.floor((Date.now() - sessionStartTime) / 1000); // in seconds
+                        const totalAnswered = Object.keys(answeredQuestions).length;
+                        const correctAnswers = Object.entries(answeredQuestions).filter(([qId, answer]) => {
+                            const question = quizQuestions.find(q => q.id === parseInt(qId));
+                            return question && answer === question.correct;
+                        }).length;
+                        const scorePercentage = Math.round((correctAnswers / totalAnswered) * 100);
+
+                        // Calculate XP earned (same logic as during quiz)
+                        const xpEarned = correctAnswers * (activeDoubleXP ? 20 : 10);
+
+                        // Determine mode name
+                        let modeName = '';
+                        if (selectedMode === 'all') {
+                            modeName = 'All Topics';
+                        } else if (selectedMode && chapterInfo[selectedMode]) {
+                            modeName = `Chapter ${selectedMode}: ${chapterInfo[selectedMode].name}`;
+                        } else {
+                            modeName = 'Quiz';
+                        }
+
+                        const sessionData = {
+                            mode: modeName,
+                            date: new Date().toLocaleDateString(),
+                            score: scorePercentage,
+                            correct: correctAnswers,
+                            total: totalAnswered,
+                            xpEarned: xpEarned,
+                            time: timeElapsed
+                        };
+
+                        saveStudySession(sessionData);
+                    }
+
                     setCurrentScreen('home');
                     setSelectedMode(null);
                     setQuizQuestions([]);
@@ -2589,6 +2749,7 @@
                     setAnsweredQuestions({});
                     setSelectedAnswer(null);
                     setShowExplanation(false);
+                    setSessionStartTime(null);
                 }
             };
 
@@ -4172,6 +4333,203 @@
                 );
             }
 
+            // Leaderboard Screen Component
+            if (currentScreen === 'leaderboard') {
+                const currentRank = getRank(xp);
+                const nextRank = getNextRank(xp);
+
+                // Sort sessions by score, then by XP, then by time
+                const topSessions = [...studySessions]
+                    .sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        if (b.xpEarned !== a.xpEarned) return b.xpEarned - a.xpEarned;
+                        return a.time - b.time;
+                    })
+                    .slice(0, 10);
+
+                const weeklyProgress = (weeklyChallenge.progress / weeklyChallenge.goal) * 100;
+
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <h1 className="text-3xl font-bold text-gray-800">🏆 Leaderboard & Rankings</h1>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Current Rank Card */}
+                            <div className={`bg-gradient-to-br ${currentRank.color} rounded-lg shadow-2xl p-8 mb-6 text-white`}>
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h2 className="text-4xl font-bold mb-2">{currentRank.icon} {currentRank.name}</h2>
+                                        <p className="text-white/90 text-lg">{currentRank.tier} Rank</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-5xl font-bold">{xp}</div>
+                                        <div className="text-white/90">Total XP</div>
+                                    </div>
+                                </div>
+
+                                {nextRank && (
+                                    <div>
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span>Progress to {nextRank.tier}</span>
+                                            <span className="font-bold">{xp}/{nextRank.minXP} XP</span>
+                                        </div>
+                                        <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
+                                            <div
+                                                className="bg-white h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${Math.min(100, (xp / nextRank.minXP) * 100)}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="text-sm text-white/80 mt-2">
+                                            {nextRank.minXP - xp} XP needed for {nextRank.name}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {!nextRank && (
+                                    <div className="text-center py-4">
+                                        <p className="text-2xl font-bold">👑 MAXIMUM RANK ACHIEVED! 👑</p>
+                                        <p className="text-white/80 mt-2">You've reached the pinnacle of testing mastery!</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* All Ranks Display */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">📊 Ranking System</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {rankSystem.map((rank, idx) => {
+                                        const isCurrentRank = rank.name === currentRank.name;
+                                        const isAchieved = xp >= rank.minXP;
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`p-4 rounded-lg border-2 ${isCurrentRank ? rank.borderColor + ' ' + rank.bgColor : 'border-gray-200 bg-gray-50'} ${!isAchieved && 'opacity-50'}`}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="text-3xl">{rank.icon}</div>
+                                                    {isCurrentRank && (
+                                                        <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-bold">
+                                                            CURRENT
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h3 className="font-bold text-lg text-gray-800">{rank.tier}</h3>
+                                                <p className="text-sm text-gray-600 mb-1">{rank.name}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {rank.minXP === 0 ? '0' : rank.minXP.toLocaleString()}
+                                                    {rank.maxXP === Infinity ? '+' : ` - ${rank.maxXP.toLocaleString()}`} XP
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Weekly Challenge */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-2xl font-bold text-purple-700">🎯 Weekly Challenge</h2>
+                                    {weeklyChallenge.completed && (
+                                        <span className="px-4 py-2 bg-green-500 text-white rounded-full font-bold flex items-center gap-2">
+                                            ✓ COMPLETED
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between text-sm mb-2">
+                                        <span className="font-semibold text-gray-700">Earn {weeklyChallenge.goal.toLocaleString()} XP this week</span>
+                                        <span className="font-bold text-purple-700">{weeklyChallenge.progress}/{weeklyChallenge.goal} XP</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                                        <div
+                                            className="bg-gradient-to-r from-purple-500 to-pink-600 h-full rounded-full transition-all duration-500 flex items-center justify-center text-white text-xs font-bold"
+                                            style={{ width: `${Math.min(100, weeklyProgress)}%` }}
+                                        >
+                                            {weeklyProgress >= 10 && `${Math.round(weeklyProgress)}%`}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                                    <p className="text-purple-800 font-semibold mb-2">🎁 Reward: 500 Bonus Tokens</p>
+                                    <p className="text-sm text-purple-600">
+                                        {weeklyChallenge.completed
+                                            ? 'Challenge completed! Keep studying to maintain your streak.'
+                                            : `${weeklyChallenge.goal - weeklyChallenge.progress} XP remaining. Resets on Sunday midnight.`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Top 10 Personal Best Sessions */}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">🎖️ Your Top 10 Study Sessions</h2>
+
+                                {topSessions.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <div className="text-6xl mb-4">📝</div>
+                                        <p className="text-lg">No study sessions recorded yet.</p>
+                                        <p className="text-sm mt-2">Complete quizzes to start building your leaderboard!</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {topSessions.map((session, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`p-4 rounded-lg border-2 ${
+                                                    idx === 0
+                                                        ? 'border-yellow-400 bg-yellow-50'
+                                                        : idx === 1
+                                                        ? 'border-gray-400 bg-gray-50'
+                                                        : idx === 2
+                                                        ? 'border-amber-600 bg-amber-50'
+                                                        : 'border-gray-200 bg-white'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="text-3xl font-bold text-gray-400">
+                                                            {idx === 0 && '🥇'}
+                                                            {idx === 1 && '🥈'}
+                                                            {idx === 2 && '🥉'}
+                                                            {idx > 2 && `#${idx + 1}`}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-gray-800">{session.mode}</p>
+                                                            <p className="text-sm text-gray-600">{session.date}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-2xl font-bold text-green-600">{session.score}%</p>
+                                                        <p className="text-sm text-gray-600">
+                                                            {session.correct}/{session.total} correct
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            +{session.xpEarned} XP • {Math.floor(session.time / 60)}:{(session.time % 60).toString().padStart(2, '0')}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             // Achievements Screen Component
             if (currentScreen === 'achievements') {
                 const getProgress = (achievementId) => {
@@ -4300,6 +4658,9 @@
 
             // Home Screen Component
             if (currentScreen === 'home') {
+                const currentRank = getRank(xp);
+                const nextRank = getNextRank(xp);
+
                 return (
                     <div className="min-h-screen py-8 px-4">
                         <div className="max-w-4xl mx-auto">
@@ -4317,9 +4678,26 @@
                                         <h1 className="text-4xl font-bold text-gray-800 mb-3">
                                             CTFL Quiz App
                                         </h1>
-                                        <p className="text-gray-600 text-lg mb-6">
+                                        <p className="text-gray-600 text-lg mb-4">
                                             Certified Tester Foundation Level Exam Preparation
                                         </p>
+                                        {/* Rank Badge */}
+                                        <div className="inline-block">
+                                            <div className={`bg-gradient-to-r ${currentRank.color} px-6 py-3 rounded-full shadow-lg`}>
+                                                <div className="flex items-center gap-2 text-white">
+                                                    <span className="text-2xl">{currentRank.icon}</span>
+                                                    <div className="text-left">
+                                                        <p className="text-xs font-semibold opacity-90">{currentRank.tier} Rank</p>
+                                                        <p className="text-sm font-bold">{currentRank.name}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {nextRank && (
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    {nextRank.minXP - xp} XP to {nextRank.tier}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="ml-4 flex gap-3">
                                         <button
@@ -4328,6 +4706,13 @@
                                             title={settings.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                                         >
                                             {settings.darkMode ? '☀️' : '🌙'}
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentScreen('leaderboard')}
+                                            className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg px-4 py-2 text-white font-bold shadow-md hover:from-orange-600 hover:to-red-700 transition-all"
+                                        >
+                                            <span className="text-2xl mr-1">🏆</span>
+                                            <span>Ranks</span>
                                         </button>
                                         <button
                                             onClick={() => setCurrentScreen('stats')}
