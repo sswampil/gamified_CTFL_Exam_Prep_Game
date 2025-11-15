@@ -50,6 +50,16 @@
             z-index: 1000;
         }
 
+        .token-float {
+            animation: xpFloat 1.5s ease-out forwards;
+            position: absolute;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #f59e0b;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
         .xp-bar-fill {
             animation: xpBarFill 0.5s ease-out;
             transform-origin: left;
@@ -840,7 +850,7 @@
         ];
 
         function QuizApp() {
-            const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'quiz', or 'achievements'
+            const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'quiz', 'achievements', or 'shop'
             const [selectedMode, setSelectedMode] = useState(null); // 'all' or chapter number
             const [quizQuestions, setQuizQuestions] = useState([]);
             const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -848,6 +858,7 @@
             const [answeredQuestions, setAnsweredQuestions] = useState({});
             const [showExplanation, setShowExplanation] = useState(false);
             const [chapterStats, setChapterStats] = useState({});
+            const [eliminatedAnswers, setEliminatedAnswers] = useState({});
 
             // RPG Progression State
             const [xp, setXp] = useState(0);
@@ -868,6 +879,13 @@
             const [unlockedToast, setUnlockedToast] = useState(null);
             const [sessionStartTime, setSessionStartTime] = useState(null);
             const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+
+            // Token Economy State
+            const [tokens, setTokens] = useState(0);
+            const [inventory, setInventory] = useState({ hints: 0, timeFreeze: 0, doubleXP: 0 });
+            const [activeDoubleXP, setActiveDoubleXP] = useState(0); // remaining questions with 2x XP
+            const [tokenGain, setTokenGain] = useState(null);
+            const [dailyLoginRewarded, setDailyLoginRewarded] = useState(false);
 
             // Load chapter stats from localStorage on mount
             useEffect(() => {
@@ -956,6 +974,37 @@
                 }
             }, []);
 
+            // Load tokens and inventory from localStorage
+            useEffect(() => {
+                const savedTokens = localStorage.getItem('ctfl-tokens');
+                const savedInventory = localStorage.getItem('ctfl-inventory');
+                const savedActiveDoubleXP = localStorage.getItem('ctfl-active-double-xp');
+
+                if (savedTokens) {
+                    try {
+                        setTokens(JSON.parse(savedTokens));
+                    } catch (e) {
+                        console.error('Error loading tokens:', e);
+                    }
+                }
+
+                if (savedInventory) {
+                    try {
+                        setInventory(JSON.parse(savedInventory));
+                    } catch (e) {
+                        console.error('Error loading inventory:', e);
+                    }
+                }
+
+                if (savedActiveDoubleXP) {
+                    try {
+                        setActiveDoubleXP(JSON.parse(savedActiveDoubleXP));
+                    } catch (e) {
+                        console.error('Error loading active double XP:', e);
+                    }
+                }
+            }, []);
+
             // Save chapter stats to localStorage
             const saveChapterStats = (stats) => {
                 localStorage.setItem('ctfl-chapter-stats', JSON.stringify(stats));
@@ -990,6 +1039,34 @@
                 setAchievementProgress(newProgress);
             };
 
+            // Save tokens to localStorage
+            const saveTokens = (newTokens) => {
+                localStorage.setItem('ctfl-tokens', JSON.stringify(newTokens));
+                setTokens(newTokens);
+            };
+
+            // Save inventory to localStorage
+            const saveInventory = (newInventory) => {
+                localStorage.setItem('ctfl-inventory', JSON.stringify(newInventory));
+                setInventory(newInventory);
+            };
+
+            // Save active double XP to localStorage
+            const saveActiveDoubleXP = (remaining) => {
+                localStorage.setItem('ctfl-active-double-xp', JSON.stringify(remaining));
+                setActiveDoubleXP(remaining);
+            };
+
+            // Award tokens with animation
+            const awardTokens = (earnedTokens) => {
+                const newTokens = tokens + earnedTokens;
+                saveTokens(newTokens);
+
+                // Show token gain animation
+                setTokenGain(earnedTokens);
+                setTimeout(() => setTokenGain(null), 1500);
+            };
+
             // Unlock an achievement
             const unlockAchievement = (achievementId) => {
                 if (achievements[achievementId]) return; // Already unlocked
@@ -999,6 +1076,9 @@
 
                 const newAchievements = { ...achievements, [achievementId]: true };
                 saveAchievements(newAchievements);
+
+                // Award tokens for achievement unlock
+                awardTokens(50);
 
                 // Show toast notification
                 setUnlockedToast(achievement);
@@ -1088,6 +1168,8 @@
                     setLastLoginDate(today);
                     setStreakHistory(newHistory);
                     saveStreakData(1, today, newHistory);
+                    // Award daily login tokens
+                    awardTokens(50);
                     return;
                 }
 
@@ -1109,6 +1191,9 @@
                     setStreakHistory(newHistory);
                     saveStreakData(newStreak, today, newHistory);
 
+                    // Award daily login tokens
+                    awardTokens(50);
+
                     // Check for milestones
                     checkStreakMilestone(newStreak);
                 } else {
@@ -1118,6 +1203,9 @@
                     setLastLoginDate(today);
                     setStreakHistory(newHistory);
                     saveStreakData(1, today, newHistory);
+
+                    // Award daily login tokens
+                    awardTokens(50);
                 }
             };
 
@@ -1188,6 +1276,8 @@
                 if (leveledUp) {
                     setShowLevelUp(true);
                     createConfetti();
+                    // Award tokens for level up
+                    awardTokens(100);
                 }
             };
 
@@ -1230,7 +1320,68 @@
                 setAnsweredQuestions({});
                 setSelectedAnswer(null);
                 setShowExplanation(false);
+                setEliminatedAnswers({});
                 setCurrentScreen('quiz');
+            };
+
+            // Use hint power-up
+            const useHint = () => {
+                if (!currentQuestion || isQuestionAnswered) return;
+                if (inventory.hints <= 0) {
+                    alert('❌ You don\'t have any hints! Buy them from the shop.');
+                    return;
+                }
+
+                // Already used hint on this question
+                if (eliminatedAnswers[currentQuestion.id]) {
+                    alert('⚠️ You already used a hint on this question!');
+                    return;
+                }
+
+                // Get all wrong answer indices
+                const wrongAnswers = currentQuestion.options
+                    .map((_, index) => index)
+                    .filter(index => index !== currentQuestion.correct);
+
+                // Randomly select 2 wrong answers to eliminate
+                const shuffled = wrongAnswers.sort(() => Math.random() - 0.5);
+                const toEliminate = shuffled.slice(0, 2);
+
+                // Update eliminated answers
+                setEliminatedAnswers(prev => ({
+                    ...prev,
+                    [currentQuestion.id]: toEliminate
+                }));
+
+                // Deduct hint from inventory
+                const newInventory = { ...inventory };
+                newInventory.hints -= 1;
+                saveInventory(newInventory);
+
+                alert('💡 Hint used! Two wrong answers have been eliminated.');
+            };
+
+            // Activate Double XP power-up
+            const activateDoubleXP = () => {
+                if (inventory.doubleXP <= 0) {
+                    alert('❌ You don\'t have any Double XP power-ups! Buy them from the shop.');
+                    return;
+                }
+
+                if (activeDoubleXP > 0) {
+                    alert('⚠️ Double XP is already active!');
+                    return;
+                }
+
+                // Deduct from inventory
+                const newInventory = { ...inventory };
+                newInventory.doubleXP -= 1;
+                saveInventory(newInventory);
+
+                // Activate for 10 questions
+                saveActiveDoubleXP(10);
+
+                alert('2️⃣ Double XP activated! Earn 2x XP for the next 10 questions.');
             };
 
             // Calculate stats for a chapter
@@ -1265,6 +1416,10 @@
             const handleAnswerClick = (answerIndex) => {
                 if (isQuestionAnswered) return;
 
+                // Prevent clicking eliminated answers
+                const eliminated = eliminatedAnswers[currentQuestion?.id] || [];
+                if (eliminated.includes(answerIndex)) return;
+
                 setSelectedAnswer(answerIndex);
                 setShowExplanation(true);
 
@@ -1291,10 +1446,20 @@
                 }
                 saveChapterStats(newStats);
 
-                // Award XP for correct answers
+                // Award XP for correct answers (with double XP if active)
                 if (isCorrect) {
-                    const earnedXP = getXPForKLevel(currentQuestion.kLevel);
+                    let earnedXP = getXPForKLevel(currentQuestion.kLevel);
+
+                    // Apply double XP if active
+                    if (activeDoubleXP > 0) {
+                        earnedXP *= 2;
+                        saveActiveDoubleXP(activeDoubleXP - 1);
+                    }
+
                     awardXP(earnedXP);
+
+                    // Award tokens for correct answer
+                    awardTokens(10);
                 }
 
                 // Track achievement progress
@@ -1367,6 +1532,12 @@
 
             const getAnswerButtonClass = (index) => {
                 const baseClass = "w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ";
+                const eliminated = eliminatedAnswers[currentQuestion?.id] || [];
+
+                // Check if this answer was eliminated by hint
+                if (eliminated.includes(index) && !isQuestionAnswered) {
+                    return baseClass + "border-gray-300 bg-gray-200 opacity-40 cursor-not-allowed line-through";
+                }
 
                 if (!isQuestionAnswered) {
                     return baseClass + "border-gray-300 hover:border-blue-500 hover:bg-blue-50 bg-white";
@@ -1481,6 +1652,19 @@
                 );
             };
 
+            // Token Counter Component
+            const TokenCounter = () => {
+                return (
+                    <button
+                        onClick={() => setCurrentScreen('shop')}
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg px-4 py-2 text-white font-bold shadow-md hover:from-yellow-600 hover:to-yellow-700 transition-all"
+                    >
+                        <span className="text-2xl mr-1">💰</span>
+                        <span>{tokens.toLocaleString()}</span>
+                    </button>
+                );
+            };
+
             // 30-Day Calendar Component
             const StreakCalendar = () => {
                 const getLast30Days = () => {
@@ -1562,6 +1746,142 @@
                     </div>
                 );
             };
+
+            // Shop Screen Component
+            if (currentScreen === 'shop') {
+                const shopItems = [
+                    {
+                        id: 'hints',
+                        name: 'Hint',
+                        emoji: '💡',
+                        price: 50,
+                        description: 'Eliminate 2 wrong answers in a question',
+                        inventoryKey: 'hints'
+                    },
+                    {
+                        id: 'doubleXP',
+                        name: 'Double XP',
+                        emoji: '2️⃣',
+                        price: 150,
+                        description: '2x XP for next 10 questions',
+                        inventoryKey: 'doubleXP'
+                    }
+                ];
+
+                const handlePurchase = (item) => {
+                    if (tokens >= item.price) {
+                        // Deduct tokens
+                        saveTokens(tokens - item.price);
+
+                        // Add to inventory
+                        const newInventory = { ...inventory };
+                        newInventory[item.inventoryKey] = (newInventory[item.inventoryKey] || 0) + 1;
+                        saveInventory(newInventory);
+
+                        alert(`✅ Purchased ${item.name}! You now have ${newInventory[item.inventoryKey]} ${item.name}(s).`);
+                    } else {
+                        alert(`❌ Not enough tokens! You need ${item.price} tokens but only have ${tokens}.`);
+                    }
+                };
+
+                return (
+                    <div className="min-h-screen py-8 px-4">
+                        <div className="max-w-4xl mx-auto">
+                            {/* Header */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-800 mb-2">💰 Token Shop</h1>
+                                        <p className="text-gray-600">
+                                            Your Balance: <span className="text-2xl font-bold text-green-600">{tokens}</span> tokens
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Shop Items */}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h2 className="text-2xl font-semibold text-gray-800 mb-6">Power-Ups</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {shopItems.map(item => (
+                                        <div key={item.id} className="border-2 border-gray-300 rounded-lg p-6 hover:border-blue-500 transition-all">
+                                            <div className="text-center mb-4">
+                                                <div className="text-6xl mb-2">{item.emoji}</div>
+                                                <h3 className="text-xl font-bold text-gray-800">{item.name}</h3>
+                                                <p className="text-sm text-gray-600 mt-2">{item.description}</p>
+                                            </div>
+
+                                            <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-gray-700 font-semibold">Price:</span>
+                                                    <span className="text-xl font-bold text-green-600">{item.price} 💰</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-700 font-semibold">You own:</span>
+                                                    <span className="text-lg font-bold text-blue-600">{inventory[item.inventoryKey] || 0}</span>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handlePurchase(item)}
+                                                disabled={tokens < item.price}
+                                                className={`w-full py-3 rounded-lg font-semibold transition-colors ${
+                                                    tokens >= item.price
+                                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                {tokens >= item.price ? 'Buy Now' : 'Not Enough Tokens'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* How to Earn Tokens */}
+                            <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-lg p-6 mt-6">
+                                <h3 className="text-xl font-bold text-gray-800 mb-4">💡 How to Earn Tokens</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">✅</span>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">Correct Answer</p>
+                                            <p className="text-sm text-gray-600">+10 tokens</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🔥</span>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">Daily Login</p>
+                                            <p className="text-sm text-gray-600">+50 tokens</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">⬆️</span>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">Level Up</p>
+                                            <p className="text-sm text-gray-600">+100 tokens</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🏅</span>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">Achievement Unlocked</p>
+                                            <p className="text-sm text-gray-600">+50 tokens</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             // Achievements Screen Component
             if (currentScreen === 'achievements') {
@@ -1712,6 +2032,7 @@
                                         </p>
                                     </div>
                                     <div className="ml-4 flex gap-3">
+                                        <TokenCounter />
                                         <BadgeCounter />
                                         <StreakCounter />
                                     </div>
@@ -1846,6 +2167,13 @@
                             </div>
                         )}
 
+                        {/* Token Gain Animation */}
+                        {tokenGain && (
+                            <div className="token-float" style={{ left: '50%', top: '25%', transform: 'translateX(-50%)' }}>
+                                +{tokenGain} 💰
+                            </div>
+                        )}
+
                         {/* Header */}
                         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <div className="flex justify-between items-center mb-4">
@@ -1860,6 +2188,7 @@
                                     </p>
                                 </div>
                                 <div className="flex gap-3 items-center">
+                                    <TokenCounter />
                                     <StreakCounter />
                                     <button
                                         onClick={handleBackToMenu}
@@ -1888,7 +2217,7 @@
                             </div>
 
                             {/* Question Info */}
-                            <div className="flex gap-4 text-sm">
+                            <div className="flex gap-4 text-sm flex-wrap">
                                 <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
                                     Chapter {currentQuestion.chapter}
                                 </span>
@@ -1898,8 +2227,50 @@
                                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-semibold">
                                     +{getXPForKLevel(currentQuestion.kLevel)} XP
                                 </span>
+                                {activeDoubleXP > 0 && (
+                                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full font-semibold animate-pulse">
+                                        2️⃣ Double XP Active ({activeDoubleXP} left)
+                                    </span>
+                                )}
                             </div>
                         </div>
+
+                        {/* Power-Ups Section */}
+                        {!isQuestionAnswered && (
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg shadow-lg p-4 mb-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Power-Ups</h3>
+                                <div className="flex gap-3 flex-wrap">
+                                    <button
+                                        onClick={useHint}
+                                        disabled={inventory.hints <= 0}
+                                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                            inventory.hints > 0
+                                                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        💡 Use Hint ({inventory.hints})
+                                    </button>
+                                    <button
+                                        onClick={activateDoubleXP}
+                                        disabled={inventory.doubleXP <= 0 || activeDoubleXP > 0}
+                                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                            inventory.doubleXP > 0 && activeDoubleXP === 0
+                                                ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        2️⃣ Activate Double XP ({inventory.doubleXP})
+                                    </button>
+                                    <button
+                                        onClick={() => setCurrentScreen('shop')}
+                                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-all"
+                                    >
+                                        🛒 Shop
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Question Card */}
                         <div className="bg-white rounded-lg shadow-lg p-6 mb-6 relative">
