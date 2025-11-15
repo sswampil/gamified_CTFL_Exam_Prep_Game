@@ -986,6 +986,144 @@
             { id: 'century-club', name: 'Century Club', desc: 'Earn 1000 total XP', emoji: '💯', category: 'fun' }
         ];
 
+        // Flashcard Bank
+        const flashcardBank = {
+            principles: [
+                { id: 1, front: 'Testing Principle 1', back: 'Testing shows the presence of defects, not their absence. Testing can show that defects are present but cannot prove that there are no defects.' },
+                { id: 2, front: 'Testing Principle 2', back: 'Exhaustive testing is impossible. Testing everything (all combinations of inputs and preconditions) is not feasible except for trivial cases.' },
+                { id: 3, front: 'Testing Principle 3', back: 'Early testing saves time and money. Both static and dynamic testing should start as early as possible in the SDLC to find defects when they are cheaper to fix.' },
+                { id: 4, front: 'Testing Principle 4', back: 'Defects cluster together. A small number of modules usually contains most of the defects discovered or is responsible for most operational failures.' },
+                { id: 5, front: 'Testing Principle 5', back: 'Pesticide paradox. If the same tests are repeated over and over again, eventually they will no longer find new defects. Tests need to be regularly reviewed and revised.' },
+                { id: 6, front: 'Testing Principle 6', back: 'Testing is context dependent. Testing is done differently in different contexts. For example, safety-critical software is tested differently from an e-commerce site.' },
+                { id: 7, front: 'Testing Principle 7', back: 'Absence-of-errors fallacy. Finding and fixing defects does not help if the system built is unusable and does not fulfill the users\' needs and expectations.' }
+            ],
+            testLevels: [
+                { id: 8, front: 'Component Testing (Unit Testing)', back: 'Tests individual components in isolation. Typically done by developers. Focuses on functionality, robustness, and resource usage of components.' },
+                { id: 9, front: 'Integration Testing', back: 'Tests interfaces between components or systems. Can be done at component level (testing interactions between software components) or system level (testing interactions between systems).' },
+                { id: 10, front: 'System Testing', back: 'Tests the complete integrated system. Focuses on overall behavior and capabilities including functional and non-functional testing. Performed in a test environment that mimics production.' },
+                { id: 11, front: 'Acceptance Testing', back: 'Validates system is ready for deployment. Types include: User Acceptance Testing (UAT), Operational Acceptance Testing, Contractual/Regulatory Acceptance Testing, and Alpha/Beta Testing.' }
+            ],
+            testTypes: [
+                { id: 12, front: 'Functional Testing', back: 'Tests WHAT the system does. Evaluates functions that the system should perform. Based on functional requirements and specifications.' },
+                { id: 13, front: 'Non-Functional Testing', back: 'Tests HOW WELL the system works. Includes performance, load, stress, usability, security, compatibility, reliability, and portability testing.' },
+                { id: 14, front: 'Black-Box Testing', back: 'Test design based on specified behavior without reference to internal structure. Examples: Equivalence Partitioning, Boundary Value Analysis, Decision Tables, State Transition Testing.' },
+                { id: 15, front: 'White-Box Testing', back: 'Test design based on internal structure and implementation. Examples: Statement Coverage, Branch Coverage, Path Coverage. Typically used in component testing.' },
+                { id: 16, front: 'Experience-Based Testing', back: 'Tests designed using tester\'s knowledge and experience. Includes Error Guessing, Exploratory Testing, and Checklist-Based Testing.' },
+                { id: 17, front: 'Regression Testing', back: 'Re-running tests after changes to ensure existing functionality still works. Critical after bug fixes, enhancements, or configuration changes.' }
+            ],
+            staticDynamic: [
+                { id: 18, front: 'Static Testing', back: 'Testing WITHOUT executing code. Includes reviews, walkthroughs, inspections, and static analysis tools. Can find defects early before code execution. Examples: reviewing requirements, design docs, code.' },
+                { id: 19, front: 'Dynamic Testing', back: 'Testing BY executing code. Requires the software to be run with test cases. All test levels (component, integration, system, acceptance) are dynamic testing.' }
+            ],
+            formulas: [
+                { id: 20, front: 'BVA - 2-Value Approach', back: 'For each boundary: Test minimum and maximum values only.\nExample: Range 1-10 → Test: 1, 10\nTotal tests = 2 × number of boundaries' },
+                { id: 21, front: 'BVA - 3-Value Approach', back: 'For each boundary: Test just below, at, and just above.\nExample: Range 1-10 → Test: 0, 1, 2, 9, 10, 11\nTotal tests = 3 × number of boundaries' },
+                { id: 22, front: 'Equivalence Partitioning Formula', back: 'Test Cases = Valid Partitions + Invalid Partitions\nMinimum: 1 test per partition\nExample: Age (1-120) → Valid: 50, Invalid: 0, 121 = 3 tests minimum' },
+                { id: 23, front: 'Decision Table Test Cases', back: 'Test Cases = Number of unique rule combinations\nFor N conditions: Maximum = 2^N\nCollapse rules where possible to reduce test cases.' }
+            ]
+        };
+
+        // Quick Reference Guides
+        const referenceGuides = {
+            1: {
+                title: 'Chapter 1: Fundamentals of Testing',
+                sections: [
+                    { heading: 'Key Concepts', items: ['Test Objectives', 'Testing vs Debugging', 'Seven Testing Principles', 'Test Process', 'Psychology of Testing'] },
+                    { heading: '7 Testing Principles', items: ['1. Testing shows presence of defects', '2. Exhaustive testing is impossible', '3. Early testing saves time/money', '4. Defects cluster together', '5. Pesticide paradox', '6. Testing is context dependent', '7. Absence-of-errors fallacy'] },
+                    { heading: 'Test Activities', items: ['Test Planning', 'Test Monitoring & Control', 'Test Analysis', 'Test Design', 'Test Implementation', 'Test Execution', 'Test Completion'] },
+                    { heading: 'Key Terms', items: ['Defect: Flaw in code', 'Error: Human mistake', 'Failure: Observable incorrect behavior', 'Test Basis: Documentation for test design', 'Test Oracle: Source to verify test results'] }
+                ]
+            },
+            2: {
+                title: 'Chapter 2: Testing Throughout SDLC',
+                sections: [
+                    { heading: 'Test Levels', items: ['Component (Unit) Testing', 'Integration Testing', 'System Testing', 'Acceptance Testing'] },
+                    { heading: 'Integration Approaches', items: ['Big Bang: Integrate all at once', 'Incremental: Integrate step-by-step', 'Top-Down: Start from top, use stubs', 'Bottom-Up: Start from bottom, use drivers'] },
+                    { heading: 'SDLC Models', items: ['Waterfall: Sequential phases', 'V-Model: Testing mirrors development', 'Iterative: Repeated cycles', 'Agile: Flexible, incremental'] },
+                    { heading: 'Maintenance Testing', items: ['Triggers: Modifications, Migration, Retirement', 'Impact Analysis: Assess change effects', 'Regression Testing: Verify existing functions'] }
+                ]
+            },
+            3: {
+                title: 'Chapter 3: Static Testing',
+                sections: [
+                    { heading: 'Static vs Dynamic', items: ['Static: No code execution (reviews, analysis)', 'Dynamic: Code execution required', 'Static finds defects earlier and cheaper'] },
+                    { heading: 'Review Types', items: ['Informal Review: No formal process', 'Walkthrough: Author-led, finding defects', 'Technical Review: Peer review by experts', 'Inspection: Formal, documented, metrics'] },
+                    { heading: 'Review Roles', items: ['Author: Creator of work product', 'Moderator: Leads review meeting', 'Scribe: Documents issues', 'Reviewer: Finds defects', 'Manager: Decides on review execution'] },
+                    { heading: 'Success Factors', items: ['Define clear objectives', 'Choose right review type', 'Train participants', 'Manage meetings effectively', 'Follow up on defects'] }
+                ]
+            },
+            4: {
+                title: 'Chapter 4: Test Design Techniques',
+                sections: [
+                    { heading: 'Black-Box Techniques', items: ['Equivalence Partitioning (EP)', 'Boundary Value Analysis (BVA)', 'Decision Table Testing', 'State Transition Testing', 'Use Case Testing'] },
+                    { heading: 'White-Box Techniques', items: ['Statement Coverage', 'Branch/Decision Coverage', 'Path Coverage', 'Code review'] },
+                    { heading: 'BVA Formula (3-value)', items: ['Test: min-1, min, min+1', 'Test: max-1, max, max+1', 'Example: 1-10 → 0,1,2,9,10,11'] },
+                    { heading: 'EP Formula', items: ['Valid partitions: 1 test each', 'Invalid partitions: 1 test each', 'Min tests = # of partitions'] },
+                    { heading: 'Experience-Based', items: ['Error Guessing: Predict likely errors', 'Exploratory Testing: Simultaneous learn/design/execute', 'Checklist-Based: Pre-defined checks'] }
+                ]
+            },
+            5: {
+                title: 'Chapter 5: Test Management',
+                sections: [
+                    { heading: 'Test Organization', items: ['Independent Testing: Separate test team', 'Test Manager: Plans, monitors, controls', 'Tester: Analyzes, designs, executes tests'] },
+                    { heading: 'Test Planning', items: ['Test Strategy: High-level approach', 'Test Plan: Detailed objectives, scope, approach', 'Entry Criteria: Conditions to start testing', 'Exit Criteria: Conditions to stop testing'] },
+                    { heading: 'Risk-Based Testing', items: ['Product Risks: What could go wrong', 'Project Risks: Issues affecting project', 'Risk Level = Likelihood × Impact', 'Test priority based on risk level'] },
+                    { heading: 'Defect Management', items: ['Log defects with sufficient detail', 'Classify by severity and priority', 'Track defect lifecycle', 'Analyze defect trends'] },
+                    { heading: 'Test Estimation', items: ['Metrics-based: Historical data', 'Expert-based: Expert judgment', 'Consider: complexity, risks, team skill'] }
+                ]
+            },
+            6: {
+                title: 'Chapter 6: Tool Support for Testing',
+                sections: [
+                    { heading: 'Tool Categories', items: ['Test Management Tools', 'Static Analysis Tools', 'Test Design/Data Prep Tools', 'Test Execution Tools', 'Performance Testing Tools', 'Specialized Tools'] },
+                    { heading: 'Benefits of Tools', items: ['Repetitive task automation', 'Consistency in testing', 'Objective assessment', 'Easy access to test info', 'Reduced repetitive manual work'] },
+                    { heading: 'Risks of Tools', items: ['Unrealistic expectations', 'Underestimating effort/time/cost', 'Over-reliance on tools', 'Vendor lock-in', 'Poor tool integration'] },
+                    { heading: 'Tool Introduction', items: ['Assess organizational maturity', 'Evaluate tools against requirements', 'Proof of concept pilot', 'Training and coaching', 'Monitor tool usage and benefits'] }
+                ]
+            }
+        };
+
+        // Exam Tips Content
+        const examTips = {
+            commonTraps: [
+                { trap: 'Exhaustive testing is achievable', correct: 'Exhaustive testing is IMPOSSIBLE (except trivial cases)' },
+                { trap: 'Testing proves absence of defects', correct: 'Testing shows PRESENCE of defects, not absence' },
+                { trap: 'Debugging = Testing', correct: 'Testing finds defects, Debugging fixes them (different activities)' },
+                { trap: 'More testing is always better', correct: 'Context-dependent. Cost-benefit analysis needed. Pesticide paradox applies.' },
+                { trap: 'Static testing requires execution', correct: 'Static testing does NOT require code execution (reviews, analysis)' },
+                { trap: 'Acceptance testing is always by customers', correct: 'Acceptance testing can be contractual, regulatory, operational, or user acceptance' },
+                { trap: 'BVA and EP are white-box techniques', correct: 'BVA and EP are BLACK-BOX techniques (specification-based)' },
+                { trap: 'Inspection is informal', correct: 'Inspection is the MOST FORMAL review type (has defined roles, metrics)' }
+            ],
+            timeManagement: [
+                '⏱️ 60 minutes for 40 questions = 90 seconds per question average',
+                '✅ First pass: Answer easy questions (30-40 mins)',
+                '🤔 Second pass: Return to marked questions (15-20 mins)',
+                '📝 Final check: Review all answers (5 mins)',
+                '⚡ Don\'t spend >3 minutes on any single question',
+                '🎯 Aim for 26+ correct (65%) to pass',
+                '📌 Use digital flags/marks to mark uncertain questions',
+                '🔢 Answer ALL questions - no penalty for wrong answers'
+            ],
+            memorizeVsUnderstand: [
+                { memorize: '7 Testing Principles (exact wording)', understand: 'WHY each principle matters' },
+                { memorize: '4 Test Levels (sequence)', understand: 'What each level tests and when' },
+                { memorize: 'BVA: min-1, min, min+1, max-1, max, max+1', understand: 'Why boundaries are defect-prone' },
+                { memorize: 'Review types: Informal < Walkthrough < Technical < Inspection', understand: 'When to use each type' },
+                { memorize: 'White-box: Statement < Branch < Path coverage', understand: 'Trade-offs between coverage levels' },
+                { memorize: 'Entry & Exit Criteria definitions', understand: 'How to apply them in practice' },
+                { memorize: 'Static = no execution, Dynamic = execution', understand: 'Advantages of each approach' }
+            ],
+            keyFormulas: [
+                '📐 BVA (2-value): min, max',
+                '📐 BVA (3-value): min-1, min, min+1, max-1, max, max+1',
+                '📐 EP: Min tests = # of valid partitions + # of invalid partitions',
+                '📐 Decision Table: Max test cases = 2^N (N = # conditions)',
+                '📐 Statement Coverage = (Executed Statements / Total Statements) × 100%',
+                '📐 Branch Coverage = (Executed Branches / Total Branches) × 100%'
+            ]
+        };
+
         function QuizApp() {
             const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'quiz', 'achievements', or 'shop'
             const [selectedMode, setSelectedMode] = useState(null); // 'all' or chapter number
@@ -1053,6 +1191,14 @@
             });
             const [isLoading, setIsLoading] = useState(false);
             const [answerAnimation, setAnswerAnimation] = useState(null);
+
+            // Learning Tools State
+            const [selectedFlashcardSet, setSelectedFlashcardSet] = useState(null);
+            const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
+            const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+            const [selectedReferenceChapter, setSelectedReferenceChapter] = useState(null);
+            const [bvaInputs, setBvaInputs] = useState({ min: '', max: '' });
+            const [epInputs, setEpInputs] = useState({ validPartitions: '', invalidPartitions: '' });
 
             // Load settings from localStorage and apply dark mode
             useEffect(() => {
@@ -3031,6 +3177,474 @@
                 );
             }
 
+            // Flashcards Screen Component
+            if (currentScreen === 'flashcards') {
+                const flashcardSets = [
+                    { key: 'principles', name: '7 Testing Principles', count: 7, emoji: '📜' },
+                    { key: 'testLevels', name: 'Test Levels', count: 4, emoji: '📊' },
+                    { key: 'testTypes', name: 'Test Types', count: 6, emoji: '🎯' },
+                    { key: 'staticDynamic', name: 'Static vs Dynamic', count: 2, emoji: '⚖️' },
+                    { key: 'formulas', name: 'BVA/EP Formulas', count: 4, emoji: '📐' }
+                ];
+
+                if (!selectedFlashcardSet) {
+                    return (
+                        <div className="min-h-screen py-8 px-4 bg-gray-50">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                    <div className="flex justify-between items-center">
+                                        <h1 className="text-3xl font-bold text-gray-800">🗂️ Flashcard Mode</h1>
+                                        <button
+                                            onClick={() => setCurrentScreen('home')}
+                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                        >
+                                            ← Back to Home
+                                        </button>
+                                    </div>
+                                    <p className="text-gray-600 mt-2">Master key CTFL concepts with interactive flashcards</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {flashcardSets.map(set => (
+                                        <div
+                                            key={set.key}
+                                            onClick={() => {
+                                                setSelectedFlashcardSet(set.key);
+                                                setCurrentFlashcardIndex(0);
+                                                setIsFlashcardFlipped(false);
+                                            }}
+                                            className="bg-white rounded-lg shadow-lg p-8 cursor-pointer hover:shadow-xl transition-shadow border-2 border-transparent hover:border-blue-500"
+                                        >
+                                            <div className="text-6xl mb-4 text-center">{set.emoji}</div>
+                                            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">{set.name}</h3>
+                                            <p className="text-gray-600 text-center">{set.count} flashcards</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                const currentSet = flashcardBank[selectedFlashcardSet];
+                const currentCard = currentSet[currentFlashcardIndex];
+                const progress = `${currentFlashcardIndex + 1} / ${currentSet.length}`;
+
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-gray-800">{flashcardSets.find(s => s.key === selectedFlashcardSet).name}</h2>
+                                        <p className="text-gray-600">{progress}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedFlashcardSet(null)}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        ← Back
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                onClick={() => setIsFlashcardFlipped(!isFlashcardFlipped)}
+                                className="bg-white rounded-lg shadow-2xl p-12 mb-6 min-h-[400px] flex items-center justify-center cursor-pointer hover:shadow-3xl transition-shadow"
+                                style={{ perspective: '1000px' }}
+                            >
+                                <div className="text-center">
+                                    <p className="text-sm font-bold text-blue-600 mb-6">
+                                        {isFlashcardFlipped ? 'ANSWER' : 'QUESTION'} - Click to flip
+                                    </p>
+                                    <p className="text-2xl font-semibold text-gray-800" style={{ whiteSpace: 'pre-wrap' }}>
+                                        {isFlashcardFlipped ? currentCard.back : currentCard.front}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                                <button
+                                    onClick={() => {
+                                        setCurrentFlashcardIndex(Math.max(0, currentFlashcardIndex - 1));
+                                        setIsFlashcardFlipped(false);
+                                    }}
+                                    disabled={currentFlashcardIndex === 0}
+                                    className="px-8 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    ← Previous
+                                </button>
+
+                                <button
+                                    onClick={() => setIsFlashcardFlipped(!isFlashcardFlipped)}
+                                    className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
+                                >
+                                    🔄 Flip Card
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setCurrentFlashcardIndex(Math.min(currentSet.length - 1, currentFlashcardIndex + 1));
+                                        setIsFlashcardFlipped(false);
+                                    }}
+                                    disabled={currentFlashcardIndex === currentSet.length - 1}
+                                    className="px-8 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Quick Reference Screen Component
+            if (currentScreen === 'reference') {
+                if (!selectedReferenceChapter) {
+                    return (
+                        <div className="min-h-screen py-8 px-4 bg-gray-50">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                    <div className="flex justify-between items-center">
+                                        <h1 className="text-3xl font-bold text-gray-800">📚 Quick Reference Guides</h1>
+                                        <button
+                                            onClick={() => setCurrentScreen('home')}
+                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                        >
+                                            ← Back to Home
+                                        </button>
+                                    </div>
+                                    <p className="text-gray-600 mt-2">One-page cheat sheets for quick review</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {Object.entries(referenceGuides).map(([chapter, guide]) => (
+                                        <div
+                                            key={chapter}
+                                            onClick={() => setSelectedReferenceChapter(parseInt(chapter))}
+                                            className="bg-white rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-shadow border-2 border-transparent hover:border-green-500"
+                                        >
+                                            <div className="text-5xl mb-4 text-center">📖</div>
+                                            <h3 className="text-lg font-bold text-gray-800 text-center">Chapter {chapter}</h3>
+                                            <p className="text-sm text-gray-600 text-center mt-2">{guide.title.split(': ')[1]}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                const guide = referenceGuides[selectedReferenceChapter];
+
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-5xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-800">{guide.title}</h1>
+                                        <p className="text-gray-600 mt-1">Quick reference guide</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => window.print()}
+                                            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold"
+                                        >
+                                            🖨️ Print
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedReferenceChapter(null)}
+                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                        >
+                                            ← Back
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow-lg p-8">
+                                {guide.sections.map((section, idx) => (
+                                    <div key={idx} className="mb-8 last:mb-0">
+                                        <h2 className="text-2xl font-bold text-blue-700 mb-4 border-b-2 border-blue-200 pb-2">
+                                            {section.heading}
+                                        </h2>
+                                        <ul className="space-y-2">
+                                            {section.items.map((item, itemIdx) => (
+                                                <li key={itemIdx} className="flex items-start">
+                                                    <span className="text-green-600 font-bold mr-3">✓</span>
+                                                    <span className="text-gray-700 text-lg">{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Formula Helper Screen Component
+            if (currentScreen === 'formulas') {
+                const calculateBVA = () => {
+                    const min = parseInt(bvaInputs.min);
+                    const max = parseInt(bvaInputs.max);
+                    if (isNaN(min) || isNaN(max)) return null;
+
+                    return {
+                        twoValue: [min, max],
+                        threeValue: [min - 1, min, min + 1, max - 1, max, max + 1]
+                    };
+                };
+
+                const calculateEP = () => {
+                    const valid = parseInt(epInputs.validPartitions);
+                    const invalid = parseInt(epInputs.invalidPartitions);
+                    if (isNaN(valid) || isNaN(invalid)) return null;
+
+                    return {
+                        minTests: valid + invalid,
+                        validTests: valid,
+                        invalidTests: invalid
+                    };
+                };
+
+                const bvaResult = calculateBVA();
+                const epResult = calculateEP();
+
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <h1 className="text-3xl font-bold text-gray-800">🧮 Formula Helper</h1>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                                <p className="text-gray-600 mt-2">Interactive calculators for BVA and EP</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                {/* BVA Calculator */}
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h2 className="text-2xl font-bold text-blue-700 mb-4">📐 Boundary Value Analysis (BVA)</h2>
+                                    <p className="text-gray-600 mb-4">Enter the min and max values of a range</p>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum Value</label>
+                                            <input
+                                                type="number"
+                                                value={bvaInputs.min}
+                                                onChange={(e) => setBvaInputs({...bvaInputs, min: e.target.value})}
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                                placeholder="e.g., 1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Maximum Value</label>
+                                            <input
+                                                type="number"
+                                                value={bvaInputs.max}
+                                                onChange={(e) => setBvaInputs({...bvaInputs, max: e.target.value})}
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                                placeholder="e.g., 10"
+                                            />
+                                        </div>
+
+                                        {bvaResult && (
+                                            <div className="mt-6 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                                                <h3 className="font-bold text-green-800 mb-3">Test Values:</h3>
+                                                <div className="mb-4">
+                                                    <p className="font-semibold text-gray-800">2-Value Approach:</p>
+                                                    <p className="text-lg text-green-700 font-mono">{bvaResult.twoValue.join(', ')}</p>
+                                                    <p className="text-sm text-gray-600 mt-1">{bvaResult.twoValue.length} test cases</p>
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">3-Value Approach:</p>
+                                                    <p className="text-lg text-green-700 font-mono">{bvaResult.threeValue.join(', ')}</p>
+                                                    <p className="text-sm text-gray-600 mt-1">{bvaResult.threeValue.length} test cases</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                                        <p className="text-sm font-semibold text-blue-800 mb-2">💡 Example:</p>
+                                        <p className="text-sm text-gray-700">Valid age range: 18-65</p>
+                                        <p className="text-sm text-gray-700">3-Value BVA: <span className="font-mono">17, 18, 19, 64, 65, 66</span></p>
+                                    </div>
+                                </div>
+
+                                {/* EP Calculator */}
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h2 className="text-2xl font-bold text-purple-700 mb-4">📊 Equivalence Partitioning (EP)</h2>
+                                    <p className="text-gray-600 mb-4">Enter the number of partitions</p>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Valid Partitions</label>
+                                            <input
+                                                type="number"
+                                                value={epInputs.validPartitions}
+                                                onChange={(e) => setEpInputs({...epInputs, validPartitions: e.target.value})}
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                                                placeholder="e.g., 1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Invalid Partitions</label>
+                                            <input
+                                                type="number"
+                                                value={epInputs.invalidPartitions}
+                                                onChange={(e) => setEpInputs({...epInputs, invalidPartitions: e.target.value})}
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                                                placeholder="e.g., 2"
+                                            />
+                                        </div>
+
+                                        {epResult && (
+                                            <div className="mt-6 p-4 bg-purple-50 border-2 border-purple-300 rounded-lg">
+                                                <h3 className="font-bold text-purple-800 mb-3">Results:</h3>
+                                                <div className="space-y-2">
+                                                    <p className="text-gray-800">
+                                                        <span className="font-semibold">Minimum Test Cases:</span>
+                                                        <span className="text-2xl font-bold text-purple-700 ml-3">{epResult.minTests}</span>
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {epResult.validTests} valid + {epResult.invalidTests} invalid = {epResult.minTests} total
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                                        <p className="text-sm font-semibold text-purple-800 mb-2">💡 Example:</p>
+                                        <p className="text-sm text-gray-700">Age: 1-120 (valid), &lt;1 (invalid), &gt;120 (invalid)</p>
+                                        <p className="text-sm text-gray-700">Partitions: 1 valid + 2 invalid = <span className="font-bold">3 minimum tests</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Example Problems */}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 Example Problems with Solutions</h2>
+
+                                <div className="space-y-6">
+                                    <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500">
+                                        <p className="font-bold text-gray-800 mb-2">Problem 1: Discount Code (BVA)</p>
+                                        <p className="text-gray-700 mb-2">A discount code must be 6-12 characters. What are the BVA test values?</p>
+                                        <p className="text-sm text-green-700 font-semibold mt-3">Solution (3-value):</p>
+                                        <p className="text-sm text-gray-700">5, 6, 7, 11, 12, 13 characters</p>
+                                    </div>
+
+                                    <div className="p-4 bg-blue-50 border-l-4 border-blue-500">
+                                        <p className="font-bold text-gray-800 mb-2">Problem 2: Temperature Ranges (EP)</p>
+                                        <p className="text-gray-700 mb-2">Valid temp: -10°C to 50°C. How many partitions exist?</p>
+                                        <p className="text-sm text-green-700 font-semibold mt-3">Solution:</p>
+                                        <p className="text-sm text-gray-700">Valid: [-10, 50] | Invalid: &lt;-10, &gt;50</p>
+                                        <p className="text-sm text-gray-700">Minimum tests: 1 valid + 2 invalid = <span className="font-bold">3 tests</span></p>
+                                    </div>
+
+                                    <div className="p-4 bg-purple-50 border-l-4 border-purple-500">
+                                        <p className="font-bold text-gray-800 mb-2">Problem 3: Combined BVA + EP</p>
+                                        <p className="text-gray-700 mb-2">Quantity: 1-100 (normal price), 101-500 (10% off), 501+ (20% off)</p>
+                                        <p className="text-sm text-green-700 font-semibold mt-3">Solution:</p>
+                                        <p className="text-sm text-gray-700">EP: 3 valid partitions + 1 invalid (&lt;1) = 4 tests</p>
+                                        <p className="text-sm text-gray-700">BVA on boundaries: 0,1,2 | 99,100,101,102 | 499,500,501,502</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Exam Tips Screen Component
+            if (currentScreen === 'tips') {
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <h1 className="text-3xl font-bold text-gray-800">💡 CTFL Exam Tips & Strategies</h1>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                                <p className="text-gray-600 mt-2">Expert strategies to ace your CTFL exam</p>
+                            </div>
+
+                            {/* Common Traps */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-red-700 mb-4">⚠️ Common Traps in CTFL Exam</h2>
+                                <div className="space-y-4">
+                                    {examTips.commonTraps.map((item, idx) => (
+                                        <div key={idx} className="p-4 bg-red-50 border-l-4 border-red-500">
+                                            <p className="font-bold text-red-800 mb-2">❌ TRAP: {item.trap}</p>
+                                            <p className="text-green-700 font-semibold">✅ CORRECT: {item.correct}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Time Management */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-blue-700 mb-4">⏰ Time Management Strategies</h2>
+                                <ul className="space-y-3">
+                                    {examTips.timeManagement.map((tip, idx) => (
+                                        <li key={idx} className="flex items-start p-3 bg-blue-50 rounded-lg">
+                                            <span className="text-blue-600 font-bold mr-3 text-xl">•</span>
+                                            <span className="text-gray-800 text-lg">{tip}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            {/* Memorize vs Understand */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-purple-700 mb-4">🧠 What to Memorize vs. Understand</h2>
+                                <div className="space-y-4">
+                                    {examTips.memorizeVsUnderstand.map((item, idx) => (
+                                        <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-purple-50 rounded-lg">
+                                            <div className="border-r-2 border-purple-300 pr-4">
+                                                <p className="font-bold text-purple-800 mb-2">📝 MEMORIZE:</p>
+                                                <p className="text-gray-800">{item.memorize}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-blue-800 mb-2">💡 UNDERSTAND:</p>
+                                                <p className="text-gray-800">{item.understand}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Key Formulas */}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h2 className="text-2xl font-bold text-green-700 mb-4">📐 Key Formulas to Remember</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {examTips.keyFormulas.map((formula, idx) => (
+                                        <div key={idx} className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                                            <p className="font-mono text-lg text-gray-800">{formula}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             // Achievements Screen Component
             if (currentScreen === 'achievements') {
                 const getProgress = (achievementId) => {
@@ -3205,6 +3819,50 @@
 
                             {/* Daily Missions */}
                             <DailyMissionsPanel />
+
+                            {/* Learning Tools */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+                                    📚 Learning Tools
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <button
+                                        onClick={() => setCurrentScreen('flashcards')}
+                                        className="p-6 bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg shadow-md transition-all transform hover:scale-105"
+                                    >
+                                        <div className="text-4xl mb-3">🗂️</div>
+                                        <h3 className="font-bold text-lg mb-1">Flashcards</h3>
+                                        <p className="text-xs text-blue-100">Master key concepts</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentScreen('reference')}
+                                        className="p-6 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow-md transition-all transform hover:scale-105"
+                                    >
+                                        <div className="text-4xl mb-3">📚</div>
+                                        <h3 className="font-bold text-lg mb-1">Quick Reference</h3>
+                                        <p className="text-xs text-green-100">Chapter cheat sheets</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentScreen('formulas')}
+                                        className="p-6 bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white rounded-lg shadow-md transition-all transform hover:scale-105"
+                                    >
+                                        <div className="text-4xl mb-3">🧮</div>
+                                        <h3 className="font-bold text-lg mb-1">Formula Helper</h3>
+                                        <p className="text-xs text-purple-100">BVA & EP calculators</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentScreen('tips')}
+                                        className="p-6 bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-lg shadow-md transition-all transform hover:scale-105"
+                                    >
+                                        <div className="text-4xl mb-3">💡</div>
+                                        <h3 className="font-bold text-lg mb-1">Exam Tips</h3>
+                                        <p className="text-xs text-orange-100">Strategies to ace</p>
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Chapter Selection */}
                             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
