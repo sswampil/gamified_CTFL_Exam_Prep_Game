@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTFL Quiz App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Question Bank - 50 questions across 6 chapters
+        const questionBank = [
+            // Chapter 1: Fundamentals of Testing (8 questions)
+            {
+                id: 1,
+                chapter: 1,
+                kLevel: "K1",
+                question: "What is the primary objective of testing?",
+                options: [
+                    "To find as many defects as possible",
+                    "To verify that the system meets specified requirements",
+                    "To demonstrate that the system has no defects",
+                    "To provide information about the quality of the product"
+                ],
+                correct: 3,
+                explanation: "The primary objective of testing is to provide stakeholders with information about the quality of the product or service under test, enabling informed decisions."
+            },
+            {
+                id: 2,
+                chapter: 1,
+                kLevel: "K2",
+                question: "Which of the following is NOT a principle of testing?",
+                options: [
+                    "Testing shows the presence of defects",
+                    "Exhaustive testing is possible",
+                    "Early testing saves time and money",
+                    "Defects cluster together"
+                ],
+                correct: 1,
+                explanation: "Exhaustive testing is impossible. One of the seven testing principles states that testing everything (all combinations of inputs and preconditions) is not feasible."
+            },
+            {
+                id: 3,
+                chapter: 1,
+                kLevel: "K1",
+                question: "What is the pesticide paradox in testing?",
+                options: [
+                    "Defects tend to cluster in specific modules",
+                    "The same tests repeated will eventually find no new defects",
+                    "Testing can only show presence of defects, not their absence",
+                    "Early testing is more effective than late testing"
+                ],
+                correct: 1,
+                explanation: "The pesticide paradox states that if the same tests are repeated over and over again, eventually the same test cases will no longer find new defects. Tests need to be regularly reviewed and revised."
+            },
+            {
+                id: 4,
+                chapter: 1,
+                kLevel: "K2",
+                question: "Which testing activity involves evaluating test coverage?",
+                options: [
+                    "Test analysis",
+                    "Test design",
+                    "Test implementation",
+                    "Test monitoring and control"
+                ],
+                correct: 3,
+                explanation: "Test monitoring and control involves checking test results, evaluating test coverage, and comparing actual progress against the plan."
+            },
+            {
+                id: 5,
+                chapter: 1,
+                kLevel: "K1",
+                question: "What is a test basis?",
+                options: [
+                    "The environment where tests are executed",
+                    "The documentation on which test cases are based",
+                    "The tools used for testing",
+                    "The team responsible for testing"
+                ],
+                correct: 1,
+                explanation: "Test basis refers to the body of knowledge (requirements, design specs, user stories, etc.) used as the foundation for test analysis and design."
+            },
+            {
+                id: 6,
+                chapter: 1,
+                kLevel: "K2",
+                question: "What is the difference between a defect and a failure?",
+                options: [
+                    "There is no difference, they are synonyms",
+                    "A defect is in the code, a failure is observable incorrect behavior",
+                    "A failure is in the code, a defect is observable incorrect behavior",
+                    "Defects occur during testing, failures occur in production"
+                ],
+                correct: 1,
+                explanation: "A defect (or bug) is a flaw in the code or system. A failure is the manifestation of a defect during execution, resulting in incorrect behavior."
+            },
+            {
+                id: 7,
+                chapter: 1,
+                kLevel: "K1",
+                question: "Which test level focuses on interactions between integrated components?",
+                options: [
+                    "Component testing",
+                    "Integration testing",
+                    "System testing",
+                    "Acceptance testing"
+                ],
+                correct: 1,
+                explanation: "Integration testing focuses on the interactions and interfaces between integrated components or systems."
+            },
+            {
+                id: 8,
+                chapter: 1,
+                kLevel: "K2",
+                question: "What type of testing is performed to verify that defects have been fixed?",
+                options: [
+                    "Regression testing",
+                    "Confirmation testing",
+                    "Smoke testing",
+                    "Sanity testing"
+                ],
+                correct: 1,
+                explanation: "Confirmation testing (or re-testing) is performed to verify that defects have been fixed correctly. Regression testing checks that changes haven't introduced new defects."
+            },
+
+            // Chapter 2: Testing Throughout the SDLC (8 questions)
+            {
+                id: 9,
+                chapter: 2,
+                kLevel: "K1",
+                question: "In which development model are requirements defined incrementally?",
+                options: [
+                    "Waterfall model",
+                    "V-model",
+                    "Iterative model",
+                    "Sequential model"
+                ],
+                correct: 2,
+                explanation: "In iterative and incremental models, requirements can be defined and refined incrementally throughout the project lifecycle."
+            },
+            {
+                id: 10,
+                chapter: 2,
+                kLevel: "K2",
+                question: "What is shift-left testing?",
+                options: [
+                    "Testing on the left side of the screen",
+                    "Moving testing activities earlier in the SDLC",
+                    "Testing only at the beginning of the project",
+                    "Reducing the number of testers"
+                ],
+                correct: 1,
+                explanation: "Shift-left is an approach where testing activities are performed earlier in the SDLC, enabling early defect detection and prevention."
+            },
+            {
+                id: 11,
+                chapter: 2,
+                kLevel: "K1",
+                question: "Which test level is typically performed by end users?",
+                options: [
+                    "Component testing",
+                    "Integration testing",
+                    "System testing",
+                    "Acceptance testing"
+                ],
+                correct: 3,
+                explanation: "Acceptance testing is typically performed by end users or customers to validate that the system meets their needs and is ready for deployment."
+            },
+            {
+                id: 12,
+                chapter: 2,
+                kLevel: "K2",
+                question: "What is the primary focus of maintenance testing?",
+                options: [
+                    "Testing new features only",
+                    "Testing modifications and their impact on existing functionality",
+                    "Testing the installation process",
+                    "Testing documentation"
+                ],
+                correct: 1,
+                explanation: "Maintenance testing focuses on testing changes (modifications, upgrades, patches) and their impact on the existing system, including regression testing."
+            },
+            {
+                id: 13,
+                chapter: 2,
+                kLevel: "K1",
+                question: "In the V-model, what test level corresponds to high-level design?",
+                options: [
+                    "Component testing",
+                    "Integration testing",
+                    "System testing",
+                    "Acceptance testing"
+                ],
+                correct: 1,
+                explanation: "In the V-model, integration testing corresponds to high-level/architectural design, testing interfaces between components."
+            },
+            {
+                id: 14,
+                chapter: 2,
+                kLevel: "K2",
+                question: "What is a test oracle?",
+                options: [
+                    "A senior test manager",
+                    "A source to determine expected results",
+                    "An automated testing tool",
+                    "A type of test environment"
+                ],
+                correct: 1,
+                explanation: "A test oracle is a source of information (documentation, previous version, expert knowledge) used to determine the expected results for test execution."
+            },
+            {
+                id: 15,
+                chapter: 2,
+                kLevel: "K1",
+                question: "Which testing type verifies that the system meets business requirements?",
+                options: [
+                    "Functional testing",
+                    "Performance testing",
+                    "Security testing",
+                    "Usability testing"
+                ],
+                correct: 0,
+                explanation: "Functional testing verifies that the system functions according to the specified functional requirements and business needs."
+            },
+            {
+                id: 16,
+                chapter: 2,
+                kLevel: "K2",
+                question: "What triggers maintenance testing?",
+                options: [
+                    "Only major system upgrades",
+                    "Modifications, migrations, or retirement of systems",
+                    "Only defect fixes",
+                    "Annual reviews"
+                ],
+                correct: 1,
+                explanation: "Maintenance testing is triggered by modifications, migrations, upgrades, patches, or retirement/decommissioning of systems."
+            },
+
+            // Chapter 3: Static Testing (8 questions)
+            {
+                id: 17,
+                chapter: 3,
+                kLevel: "K1",
+                question: "What is the main difference between static and dynamic testing?",
+                options: [
+                    "Static testing is automated, dynamic is manual",
+                    "Static testing examines code without execution, dynamic requires execution",
+                    "Static testing is cheaper, dynamic is more expensive",
+                    "Static testing finds more defects than dynamic testing"
+                ],
+                correct: 1,
+                explanation: "Static testing examines work products (code, documents) without executing the software, while dynamic testing requires software execution."
+            },
+            {
+                id: 18,
+                chapter: 3,
+                kLevel: "K2",
+                question: "Which of the following can be reviewed using static testing?",
+                options: [
+                    "Only source code",
+                    "Only requirements documents",
+                    "Code, requirements, design, test cases, and contracts",
+                    "Only test documentation"
+                ],
+                correct: 2,
+                explanation: "Static testing can be applied to any work product including requirements, design specs, code, test cases, user guides, contracts, and plans."
+            },
+            {
+                id: 19,
+                chapter: 3,
+                kLevel: "K1",
+                question: "What is a key benefit of static testing?",
+                options: [
+                    "It executes the software faster",
+                    "It can find defects early before execution",
+                    "It requires less expertise",
+                    "It replaces the need for dynamic testing"
+                ],
+                correct: 1,
+                explanation: "A key benefit of static testing is early defect detection, often before code execution, which is more cost-effective than finding defects later."
+            },
+            {
+                id: 20,
+                chapter: 3,
+                kLevel: "K2",
+                question: "What is the primary purpose of a formal review?",
+                options: [
+                    "To train new team members",
+                    "To evaluate quality and find defects",
+                    "To assign blame for defects",
+                    "To create documentation"
+                ],
+                correct: 1,
+                explanation: "The primary purpose of formal reviews is to evaluate the quality of work products and identify defects, anomalies, and issues."
+            },
+            {
+                id: 21,
+                chapter: 3,
+                kLevel: "K1",
+                question: "Which role is responsible for deciding what to review in a formal review?",
+                options: [
+                    "Author",
+                    "Reviewer",
+                    "Moderator",
+                    "Manager"
+                ],
+                correct: 3,
+                explanation: "The manager is responsible for deciding what should be reviewed and allocating time and resources for reviews."
+            },
+            {
+                id: 22,
+                chapter: 3,
+                kLevel: "K2",
+                question: "What is the main characteristic of an informal review?",
+                options: [
+                    "It has a formal documented process",
+                    "It requires a moderator",
+                    "It has no formal process or documentation requirements",
+                    "It can only be done for code"
+                ],
+                correct: 2,
+                explanation: "Informal reviews have no formal process, no required documentation, and can range from pair programming to casual document reviews."
+            },
+            {
+                id: 23,
+                chapter: 3,
+                kLevel: "K1",
+                question: "What is static analysis typically used for?",
+                options: [
+                    "Executing test cases",
+                    "Analyzing code structure and finding defects without execution",
+                    "Performance testing",
+                    "User acceptance testing"
+                ],
+                correct: 1,
+                explanation: "Static analysis uses tools to evaluate code or other work products without execution, finding defects, security vulnerabilities, and code standard violations."
+            },
+            {
+                id: 24,
+                chapter: 3,
+                kLevel: "K2",
+                question: "Which review type involves the author leading peers through the work product?",
+                options: [
+                    "Inspection",
+                    "Technical review",
+                    "Walkthrough",
+                    "Informal review"
+                ],
+                correct: 2,
+                explanation: "In a walkthrough, the author leads participants through the work product to achieve common understanding and gather feedback."
+            },
+
+            // Chapter 4: Test Techniques (10 questions)
+            {
+                id: 25,
+                chapter: 4,
+                kLevel: "K2",
+                question: "What is equivalence partitioning?",
+                options: [
+                    "Testing all possible input values",
+                    "Dividing inputs into groups that should be treated the same",
+                    "Testing only boundary values",
+                    "Testing based on code structure"
+                ],
+                correct: 1,
+                explanation: "Equivalence partitioning divides inputs into groups (partitions) where all values in a partition should be processed the same way, reducing test cases needed."
+            },
+            {
+                id: 26,
+                chapter: 4,
+                kLevel: "K3",
+                question: "For an input field accepting values 1-100, which boundary values should be tested?",
+                options: [
+                    "1, 100",
+                    "0, 1, 100, 101",
+                    "0, 50, 100",
+                    "1, 50, 100"
+                ],
+                correct: 1,
+                explanation: "Boundary value analysis tests values at boundaries and just outside them: 0 (below min), 1 (min), 100 (max), 101 (above max)."
+            },
+            {
+                id: 27,
+                chapter: 4,
+                kLevel: "K2",
+                question: "What is decision table testing used for?",
+                options: [
+                    "Testing user interface decisions",
+                    "Testing combinations of conditions and their corresponding actions",
+                    "Testing only single conditions",
+                    "Testing database decisions"
+                ],
+                correct: 1,
+                explanation: "Decision table testing is used to test different combinations of conditions (inputs) and their resulting actions (outputs) systematically."
+            },
+            {
+                id: 28,
+                chapter: 4,
+                kLevel: "K1",
+                question: "Which technique is a black-box test technique?",
+                options: [
+                    "Statement coverage",
+                    "Branch coverage",
+                    "Equivalence partitioning",
+                    "Path coverage"
+                ],
+                correct: 2,
+                explanation: "Equivalence partitioning is a black-box technique based on specifications, not code structure. Coverage techniques are white-box techniques."
+            },
+            {
+                id: 29,
+                chapter: 4,
+                kLevel: "K2",
+                question: "What does statement coverage measure?",
+                options: [
+                    "Percentage of requirements tested",
+                    "Percentage of executable statements exercised",
+                    "Percentage of user stories completed",
+                    "Percentage of test cases passed"
+                ],
+                correct: 1,
+                explanation: "Statement coverage measures the percentage of executable statements in the code that have been exercised by test cases."
+            },
+            {
+                id: 30,
+                chapter: 4,
+                kLevel: "K3",
+                question: "A program has 20 statements and 5 branches. If tests execute 15 statements and 3 branches, what is the statement coverage?",
+                options: [
+                    "60%",
+                    "75%",
+                    "80%",
+                    "100%"
+                ],
+                correct: 1,
+                explanation: "Statement coverage = (15 executed / 20 total) × 100 = 75%"
+            },
+            {
+                id: 31,
+                chapter: 4,
+                kLevel: "K2",
+                question: "What is state transition testing used for?",
+                options: [
+                    "Testing mathematical calculations",
+                    "Testing systems where outputs depend on current state and inputs",
+                    "Testing only initial states",
+                    "Testing performance under load"
+                ],
+                correct: 1,
+                explanation: "State transition testing is used for systems where behavior depends on both the current state and the input, like ATMs or login systems."
+            },
+            {
+                id: 32,
+                chapter: 4,
+                kLevel: "K1",
+                question: "Which is a white-box testing technique?",
+                options: [
+                    "Equivalence partitioning",
+                    "Boundary value analysis",
+                    "Decision coverage",
+                    "Use case testing"
+                ],
+                correct: 2,
+                explanation: "Decision coverage (branch coverage) is a white-box technique that measures whether both true and false outcomes of decisions have been tested."
+            },
+            {
+                id: 33,
+                chapter: 4,
+                kLevel: "K2",
+                question: "What is the main purpose of experience-based testing?",
+                options: [
+                    "To replace systematic techniques",
+                    "To leverage tester knowledge and intuition",
+                    "To reduce testing costs",
+                    "To automate testing"
+                ],
+                correct: 1,
+                explanation: "Experience-based testing leverages the knowledge, skills, and intuition of testers to design tests, complementing systematic techniques."
+            },
+            {
+                id: 34,
+                chapter: 4,
+                kLevel: "K1",
+                question: "What is exploratory testing?",
+                options: [
+                    "Testing without any planning",
+                    "Simultaneous test design, execution, and learning",
+                    "Testing only new features",
+                    "Random testing"
+                ],
+                correct: 1,
+                explanation: "Exploratory testing involves simultaneous learning, test design, and test execution, with tests being designed and executed dynamically."
+            },
+
+            // Chapter 5: Test Management (10 questions)
+            {
+                id: 35,
+                chapter: 5,
+                kLevel: "K1",
+                question: "What is the purpose of a test plan?",
+                options: [
+                    "To execute tests",
+                    "To document testing approach, scope, resources, and schedule",
+                    "To report defects",
+                    "To design test cases"
+                ],
+                correct: 1,
+                explanation: "A test plan documents the testing approach, scope, objectives, resources, schedule, and activities for a testing project."
+            },
+            {
+                id: 36,
+                chapter: 5,
+                kLevel: "K2",
+                question: "Which factor should be considered when prioritizing tests?",
+                options: [
+                    "Only the time available",
+                    "Risk level, business priority, and dependencies",
+                    "Only tester preferences",
+                    "Only automation possibilities"
+                ],
+                correct: 1,
+                explanation: "Test prioritization should consider risk levels, business criticality, technical dependencies, and other factors to optimize testing efforts."
+            },
+            {
+                id: 37,
+                chapter: 5,
+                kLevel: "K2",
+                question: "What is risk-based testing?",
+                options: [
+                    "Testing only high-risk items",
+                    "Prioritizing and focusing testing based on risk assessment",
+                    "Avoiding all risks in testing",
+                    "Testing without any risk analysis"
+                ],
+                correct: 1,
+                explanation: "Risk-based testing uses risk assessment to prioritize and focus testing efforts on the most critical and high-risk areas."
+            },
+            {
+                id: 38,
+                chapter: 5,
+                kLevel: "K1",
+                question: "What should a defect report include?",
+                options: [
+                    "Only the defect title",
+                    "Title, description, steps to reproduce, expected/actual results, severity",
+                    "Only who found the defect",
+                    "Only the date found"
+                ],
+                correct: 1,
+                explanation: "A good defect report includes identification, description, steps to reproduce, expected and actual results, severity/priority, and other relevant details."
+            },
+            {
+                id: 39,
+                chapter: 5,
+                kLevel: "K2",
+                question: "What is the difference between test monitoring and test control?",
+                options: [
+                    "There is no difference",
+                    "Monitoring gathers data, control takes corrective actions",
+                    "Monitoring is for managers, control is for testers",
+                    "Monitoring is manual, control is automated"
+                ],
+                correct: 1,
+                explanation: "Test monitoring involves gathering information about test progress and status. Test control uses that information to take corrective actions when needed."
+            },
+            {
+                id: 40,
+                chapter: 5,
+                kLevel: "K1",
+                question: "What is configuration management in testing?",
+                options: [
+                    "Managing test tool configurations only",
+                    "Controlling and tracking changes to test items and environments",
+                    "Configuring test data",
+                    "Managing tester skills"
+                ],
+                correct: 1,
+                explanation: "Configuration management involves establishing and maintaining the integrity of work products through version control and change tracking."
+            },
+            {
+                id: 41,
+                chapter: 5,
+                kLevel: "K2",
+                question: "What metrics are useful for test monitoring?",
+                options: [
+                    "Only number of test cases",
+                    "Test progress, coverage, defect density, and pass/fail rates",
+                    "Only defect counts",
+                    "Only tester productivity"
+                ],
+                correct: 1,
+                explanation: "Useful test metrics include test progress/completion, test coverage achieved, defect density, pass/fail rates, and defect trends."
+            },
+            {
+                id: 42,
+                chapter: 5,
+                kLevel: "K1",
+                question: "What is the purpose of entry criteria?",
+                options: [
+                    "To start development",
+                    "To define when testing can begin",
+                    "To define when testing must end",
+                    "To hire testers"
+                ],
+                correct: 1,
+                explanation: "Entry criteria define the preconditions that must be satisfied before testing activities can start, ensuring readiness for testing."
+            },
+            {
+                id: 43,
+                chapter: 5,
+                kLevel: "K2",
+                question: "What is the purpose of exit criteria?",
+                options: [
+                    "To fire testers",
+                    "To define when testing activities can be considered complete",
+                    "To exit the testing tool",
+                    "To leave the project"
+                ],
+                correct: 1,
+                explanation: "Exit criteria define the conditions that must be met for testing activities to be considered complete, such as coverage targets and defect levels."
+            },
+            {
+                id: 44,
+                chapter: 5,
+                kLevel: "K2",
+                question: "What is test estimation used for?",
+                options: [
+                    "To guess randomly",
+                    "To predict testing effort, duration, and resources needed",
+                    "To estimate developer effort only",
+                    "To estimate project costs only"
+                ],
+                correct: 1,
+                explanation: "Test estimation predicts the effort, time, and resources needed for testing activities, helping with planning and resource allocation."
+            },
+
+            // Chapter 6: Tool Support for Testing (6 questions)
+            {
+                id: 45,
+                chapter: 6,
+                kLevel: "K1",
+                question: "What is the main benefit of test automation?",
+                options: [
+                    "It eliminates the need for manual testing",
+                    "It improves efficiency for repetitive tasks and regression testing",
+                    "It finds more defects than manual testing",
+                    "It is always cheaper than manual testing"
+                ],
+                correct: 1,
+                explanation: "Test automation improves efficiency for repetitive tasks like regression testing, though it complements rather than replaces manual testing."
+            },
+            {
+                id: 46,
+                chapter: 6,
+                kLevel: "K2",
+                question: "Which type of tool captures and replays user interactions?",
+                options: [
+                    "Static analysis tool",
+                    "Test management tool",
+                    "Capture/replay tool",
+                    "Coverage tool"
+                ],
+                correct: 2,
+                explanation: "Capture/replay (or record/playback) tools record user interactions with the application and can replay them for automated testing."
+            },
+            {
+                id: 47,
+                chapter: 6,
+                kLevel: "K1",
+                question: "What do test management tools help with?",
+                options: [
+                    "Only executing automated tests",
+                    "Managing test cases, tracking execution, and reporting",
+                    "Only defect tracking",
+                    "Only test data generation"
+                ],
+                correct: 1,
+                explanation: "Test management tools help organize and manage test cases, track test execution progress, manage requirements traceability, and generate reports."
+            },
+            {
+                id: 48,
+                chapter: 6,
+                kLevel: "K2",
+                question: "What should be considered before introducing a new test tool?",
+                options: [
+                    "Only the tool cost",
+                    "Organizational needs, tool fit, training needs, and pilot projects",
+                    "Only vendor reputation",
+                    "Only tool features"
+                ],
+                correct: 1,
+                explanation: "Tool selection should consider organizational needs, tool compatibility, training requirements, pilot testing, and total cost of ownership."
+            },
+            {
+                id: 49,
+                chapter: 6,
+                kLevel: "K1",
+                question: "What is a risk of test automation?",
+                options: [
+                    "Tests run too fast",
+                    "Unrealistic expectations and high maintenance costs",
+                    "Too many defects found",
+                    "Testers become too skilled"
+                ],
+                correct: 1,
+                explanation: "Test automation risks include unrealistic expectations about benefits, high initial and maintenance costs, and technical challenges."
+            },
+            {
+                id: 50,
+                chapter: 6,
+                kLevel: "K2",
+                question: "What type of tool analyzes code without executing it?",
+                options: [
+                    "Test execution tool",
+                    "Static analysis tool",
+                    "Performance testing tool",
+                    "Test data preparation tool"
+                ],
+                correct: 1,
+                explanation: "Static analysis tools analyze source code, models, or documents without executing the software, finding defects and code quality issues."
+            }
+        ];
+
+        function QuizApp() {
+            const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+            const [selectedAnswer, setSelectedAnswer] = useState(null);
+            const [answeredQuestions, setAnsweredQuestions] = useState({});
+            const [showExplanation, setShowExplanation] = useState(false);
+            const [score, setScore] = useState(0);
+
+            // Load progress from localStorage on mount
+            useEffect(() => {
+                const saved = localStorage.getItem('ctfl-quiz-progress');
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        setCurrentQuestionIndex(data.currentQuestionIndex || 0);
+                        setAnsweredQuestions(data.answeredQuestions || {});
+                        setScore(data.score || 0);
+                    } catch (e) {
+                        console.error('Error loading saved progress:', e);
+                    }
+                }
+            }, []);
+
+            // Save progress to localStorage whenever it changes
+            useEffect(() => {
+                const data = {
+                    currentQuestionIndex,
+                    answeredQuestions,
+                    score
+                };
+                localStorage.setItem('ctfl-quiz-progress', JSON.stringify(data));
+            }, [currentQuestionIndex, answeredQuestions, score]);
+
+            const currentQuestion = questionBank[currentQuestionIndex];
+            const totalQuestions = questionBank.length;
+            const isQuestionAnswered = answeredQuestions[currentQuestion.id] !== undefined;
+
+            const handleAnswerClick = (answerIndex) => {
+                if (isQuestionAnswered) return; // Prevent re-answering
+
+                setSelectedAnswer(answerIndex);
+                setShowExplanation(true);
+
+                const isCorrect = answerIndex === currentQuestion.correct;
+
+                setAnsweredQuestions(prev => ({
+                    ...prev,
+                    [currentQuestion.id]: {
+                        selected: answerIndex,
+                        correct: isCorrect
+                    }
+                }));
+
+                if (isCorrect) {
+                    setScore(prev => prev + 1);
+                }
+            };
+
+            const handleNextQuestion = () => {
+                if (currentQuestionIndex < totalQuestions - 1) {
+                    setCurrentQuestionIndex(prev => prev + 1);
+                    setSelectedAnswer(null);
+                    setShowExplanation(false);
+                }
+            };
+
+            const handlePreviousQuestion = () => {
+                if (currentQuestionIndex > 0) {
+                    setCurrentQuestionIndex(prev => prev - 1);
+                    setSelectedAnswer(null);
+                    setShowExplanation(false);
+                }
+            };
+
+            const handleRestart = () => {
+                if (window.confirm('Are you sure you want to restart? This will clear all your progress.')) {
+                    setCurrentQuestionIndex(0);
+                    setSelectedAnswer(null);
+                    setAnsweredQuestions({});
+                    setShowExplanation(false);
+                    setScore(0);
+                    localStorage.removeItem('ctfl-quiz-progress');
+                }
+            };
+
+            const getAnswerButtonClass = (index) => {
+                const baseClass = "w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ";
+
+                if (!isQuestionAnswered) {
+                    return baseClass + "border-gray-300 hover:border-blue-500 hover:bg-blue-50 bg-white";
+                }
+
+                const previousAnswer = answeredQuestions[currentQuestion.id];
+
+                if (index === currentQuestion.correct) {
+                    return baseClass + "border-green-500 bg-green-50";
+                }
+
+                if (index === previousAnswer.selected && !previousAnswer.correct) {
+                    return baseClass + "border-red-500 bg-red-50";
+                }
+
+                return baseClass + "border-gray-300 bg-gray-100 opacity-60";
+            };
+
+            const getOptionLabel = (index) => {
+                return ['A', 'B', 'C', 'D'][index];
+            };
+
+            return (
+                <div className="min-h-screen py-8 px-4">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Header */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+                                    CTFL Quiz App
+                                </h1>
+                                <button
+                                    onClick={handleRestart}
+                                    className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                >
+                                    Restart Quiz
+                                </button>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="mb-4">
+                                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                                    <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
+                                    <span className="font-semibold">Score: {score}/{totalQuestions}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Question Info */}
+                            <div className="flex gap-4 text-sm">
+                                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                    Chapter {currentQuestion.chapter}
+                                </span>
+                                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full">
+                                    {currentQuestion.kLevel}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Question Card */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h2 className="text-xl font-semibold text-gray-800 mb-6">
+                                {currentQuestion.question}
+                            </h2>
+
+                            {/* Answer Options */}
+                            <div className="space-y-3 mb-6">
+                                {currentQuestion.options.map((option, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleAnswerClick(index)}
+                                        disabled={isQuestionAnswered}
+                                        className={getAnswerButtonClass(index)}
+                                    >
+                                        <span className="font-semibold mr-2">{getOptionLabel(index)}.</span>
+                                        {option}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Feedback and Explanation */}
+                            {isQuestionAnswered && (
+                                <div className={`p-4 rounded-lg ${
+                                    answeredQuestions[currentQuestion.id].correct
+                                        ? 'bg-green-50 border-2 border-green-200'
+                                        : 'bg-red-50 border-2 border-red-200'
+                                }`}>
+                                    <p className={`font-semibold mb-2 ${
+                                        answeredQuestions[currentQuestion.id].correct
+                                            ? 'text-green-800'
+                                            : 'text-red-800'
+                                    }`}>
+                                        {answeredQuestions[currentQuestion.id].correct
+                                            ? '✓ Correct!'
+                                            : '✗ Incorrect'}
+                                    </p>
+                                    <p className="text-gray-700">
+                                        <span className="font-semibold">Explanation: </span>
+                                        {currentQuestion.explanation}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Navigation Buttons */}
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handlePreviousQuestion}
+                                disabled={currentQuestionIndex === 0}
+                                className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                                    currentQuestionIndex === 0
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+                                }`}
+                            >
+                                ← Previous
+                            </button>
+
+                            {currentQuestionIndex < totalQuestions - 1 ? (
+                                <button
+                                    onClick={handleNextQuestion}
+                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Next Question →
+                                </button>
+                            ) : (
+                                <div className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold text-center">
+                                    Quiz Complete! Final Score: {score}/{totalQuestions}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Question Overview */}
+                        <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
+                            <h3 className="text-lg font-semibold mb-4">Question Overview</h3>
+                            <div className="grid grid-cols-10 gap-2">
+                                {questionBank.map((q, index) => {
+                                    const isAnswered = answeredQuestions[q.id];
+                                    const isCurrent = index === currentQuestionIndex;
+
+                                    return (
+                                        <button
+                                            key={q.id}
+                                            onClick={() => {
+                                                setCurrentQuestionIndex(index);
+                                                setSelectedAnswer(null);
+                                                setShowExplanation(false);
+                                            }}
+                                            className={`aspect-square rounded flex items-center justify-center text-sm font-semibold transition-all ${
+                                                isCurrent
+                                                    ? 'ring-2 ring-blue-500 ring-offset-2'
+                                                    : ''
+                                            } ${
+                                                !isAnswered
+                                                    ? 'bg-gray-200 hover:bg-gray-300'
+                                                    : isAnswered.correct
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-red-500 text-white'
+                                            }`}
+                                        >
+                                            {index + 1}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-4 flex gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 bg-green-500 rounded"></div>
+                                    <span>Correct</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 bg-red-500 rounded"></div>
+                                    <span>Incorrect</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                    <span>Unanswered</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<QuizApp />);
+    </script>
+</body>
+</html>
