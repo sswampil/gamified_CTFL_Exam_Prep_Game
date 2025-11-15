@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         @keyframes xpFloat {
             0% {
@@ -221,6 +223,33 @@
 
         button:active:not(:disabled) {
             transform: translateY(0);
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .print-break {
+                page-break-after: always;
+            }
+
+            .print-only {
+                display: block !important;
+            }
+
+            @page {
+                margin: 1cm;
+            }
+        }
+
+        .print-only {
+            display: none;
         }
     </style>
 </head>
@@ -1200,6 +1229,12 @@
             const [bvaInputs, setBvaInputs] = useState({ min: '', max: '' });
             const [epInputs, setEpInputs] = useState({ validPartitions: '', invalidPartitions: '' });
 
+            // Export/Share State
+            const [friendCode, setFriendCode] = useState('');
+            const [friendCodeInput, setFriendCodeInput] = useState('');
+            const [showShareCard, setShowShareCard] = useState(false);
+            const [friendData, setFriendData] = useState(null);
+
             // Load settings from localStorage and apply dark mode
             useEffect(() => {
                 const savedSettings = localStorage.getItem('ctfl-settings');
@@ -1226,6 +1261,285 @@
                     document.getElementById('app-body').classList.add('dark');
                 } else {
                     document.getElementById('app-body').classList.remove('dark');
+                }
+            };
+
+            // Export/Backup Functions
+            const exportToJSON = () => {
+                const exportData = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    chapterStats,
+                    rpgProgress: { xp, level },
+                    streakData: { streak, lastLoginDate, streakHistory },
+                    achievements,
+                    achievementProgress,
+                    tokens,
+                    inventory,
+                    activeDoubleXP,
+                    answeredQuestions,
+                    examHistory,
+                    dailyMissions,
+                    settings
+                };
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `ctfl-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                alert('✅ Backup downloaded successfully!');
+            };
+
+            const importFromJSON = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importData = JSON.parse(e.target.result);
+
+                        // Validate data structure
+                        if (!importData.version) {
+                            alert('❌ Invalid backup file format');
+                            return;
+                        }
+
+                        // Restore all data
+                        if (importData.chapterStats) {
+                            setChapterStats(importData.chapterStats);
+                            localStorage.setItem('ctfl-chapter-stats', JSON.stringify(importData.chapterStats));
+                        }
+                        if (importData.rpgProgress) {
+                            setXp(importData.rpgProgress.xp || 0);
+                            setLevel(importData.rpgProgress.level || 1);
+                            localStorage.setItem('ctfl-rpg-progress', JSON.stringify(importData.rpgProgress));
+                        }
+                        if (importData.streakData) {
+                            setStreak(importData.streakData.streak || 0);
+                            setLastLoginDate(importData.streakData.lastLoginDate);
+                            setStreakHistory(importData.streakData.streakHistory || []);
+                            localStorage.setItem('ctfl-streak-data', JSON.stringify(importData.streakData));
+                        }
+                        if (importData.achievements) {
+                            setAchievements(importData.achievements);
+                            localStorage.setItem('ctfl-achievements', JSON.stringify(importData.achievements));
+                        }
+                        if (importData.achievementProgress) {
+                            setAchievementProgress(importData.achievementProgress);
+                            localStorage.setItem('ctfl-achievement-progress', JSON.stringify(importData.achievementProgress));
+                        }
+                        if (importData.tokens !== undefined) {
+                            setTokens(importData.tokens);
+                            localStorage.setItem('ctfl-tokens', JSON.stringify(importData.tokens));
+                        }
+                        if (importData.inventory) {
+                            setInventory(importData.inventory);
+                            localStorage.setItem('ctfl-inventory', JSON.stringify(importData.inventory));
+                        }
+                        if (importData.activeDoubleXP !== undefined) {
+                            setActiveDoubleXP(importData.activeDoubleXP);
+                            localStorage.setItem('ctfl-active-double-xp', JSON.stringify(importData.activeDoubleXP));
+                        }
+                        if (importData.answeredQuestions) {
+                            setAnsweredQuestions(importData.answeredQuestions);
+                        }
+                        if (importData.examHistory) {
+                            setExamHistory(importData.examHistory);
+                            localStorage.setItem('ctfl-exam-history', JSON.stringify(importData.examHistory));
+                        }
+                        if (importData.dailyMissions) {
+                            setDailyMissions(importData.dailyMissions);
+                            localStorage.setItem('ctfl-daily-missions', JSON.stringify(importData.dailyMissions));
+                        }
+                        if (importData.settings) {
+                            setSettings(importData.settings);
+                            localStorage.setItem('ctfl-settings', JSON.stringify(importData.settings));
+                        }
+
+                        alert('✅ Backup restored successfully! Refresh the page to see all changes.');
+                        window.location.reload();
+                    } catch (error) {
+                        alert('❌ Error importing backup: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            // Friend Code System
+            const generateFriendCode = () => {
+                const codeData = {
+                    v: 1,
+                    xp,
+                    lvl: level,
+                    str: streak,
+                    tkn: tokens,
+                    ach: Object.keys(achievements).length,
+                    stats: Object.entries(chapterStats).map(([ch, s]) => ({
+                        c: parseInt(ch),
+                        t: s.total,
+                        r: s.correct
+                    }))
+                };
+
+                const jsonStr = JSON.stringify(codeData);
+                const base64 = btoa(jsonStr);
+                return base64;
+            };
+
+            const loadFromFriendCode = (code) => {
+                try {
+                    const jsonStr = atob(code);
+                    const data = JSON.parse(jsonStr);
+
+                    return {
+                        xp: data.xp || 0,
+                        level: data.lvl || 1,
+                        streak: data.str || 0,
+                        tokens: data.tkn || 0,
+                        achievements: data.ach || 0,
+                        chapterStats: data.stats || []
+                    };
+                } catch (error) {
+                    alert('❌ Invalid friend code!');
+                    return null;
+                }
+            };
+
+            // Generate shareable achievement card
+            const generateShareableImage = async () => {
+                const card = document.getElementById('share-card');
+                if (!card) {
+                    alert('❌ Share card not ready');
+                    return;
+                }
+
+                try {
+                    const canvas = await html2canvas(card, {
+                        backgroundColor: '#1e40af',
+                        scale: 2
+                    });
+
+                    canvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `ctfl-achievements-${new Date().getTime()}.png`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        alert('✅ Achievement card downloaded!');
+                    });
+                } catch (error) {
+                    alert('❌ Error generating image: ' + error.message);
+                }
+            };
+
+            // Export to PDF
+            const exportToPDF = async () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+
+                    // Title
+                    doc.setFontSize(20);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('CTFL Study Progress Report', 105, 20, { align: 'center' });
+
+                    // Date
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 28, { align: 'center' });
+
+                    // Overall Stats
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Overall Statistics', 20, 45);
+
+                    doc.setFontSize(11);
+                    doc.setFont(undefined, 'normal');
+                    const totalAnswered = getTotalQuestionsAnswered();
+                    const totalCorrect = Object.values(chapterStats).reduce((sum, stat) => sum + (stat.correct || 0), 0);
+                    const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+                    doc.text(`Level: ${level}`, 20, 55);
+                    doc.text(`XP: ${xp}`, 20, 62);
+                    doc.text(`Streak: ${streak} days`, 20, 69);
+                    doc.text(`Tokens: ${tokens}`, 20, 76);
+                    doc.text(`Questions Answered: ${totalAnswered}`, 20, 83);
+                    doc.text(`Overall Accuracy: ${accuracy}%`, 20, 90);
+                    doc.text(`Achievements Unlocked: ${Object.keys(achievements).length}/20`, 20, 97);
+
+                    // Chapter Performance
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Chapter Performance', 20, 115);
+
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    let yPos = 125;
+
+                    Object.entries(chapterInfo).forEach(([chapterNum, info]) => {
+                        const stat = chapterStats[chapterNum];
+                        if (stat && stat.total > 0) {
+                            const chapterAcc = Math.round((stat.correct / stat.total) * 100);
+                            doc.text(
+                                `Chapter ${chapterNum}: ${info.name} - ${stat.correct}/${stat.total} (${chapterAcc}%)`,
+                                20,
+                                yPos
+                            );
+                            yPos += 7;
+                        }
+                    });
+
+                    // Achievements
+                    if (Object.keys(achievements).length > 0) {
+                        doc.setFontSize(14);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Achievements Earned', 20, yPos + 10);
+
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        yPos += 20;
+
+                        Object.keys(achievements).slice(0, 10).forEach(achId => {
+                            const ach = achievementList.find(a => a.id === achId);
+                            if (ach) {
+                                doc.text(`${ach.emoji} ${ach.name}`, 20, yPos);
+                                yPos += 7;
+                            }
+                        });
+                    }
+
+                    // Exam History
+                    if (examHistory.length > 0) {
+                        doc.addPage();
+                        doc.setFontSize(14);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Exam History', 20, 20);
+
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        yPos = 30;
+
+                        examHistory.slice(0, 10).forEach((exam, idx) => {
+                            const passed = exam.score >= 26;
+                            doc.text(
+                                `${idx + 1}. ${exam.date} - ${exam.score}/40 (${passed ? 'PASS' : 'FAIL'}) - ${exam.timeSpent}`,
+                                20,
+                                yPos
+                            );
+                            yPos += 7;
+                        });
+                    }
+
+                    doc.save(`ctfl-progress-report-${new Date().toISOString().split('T')[0]}.pdf`);
+                    alert('✅ PDF report downloaded successfully!');
+                } catch (error) {
+                    alert('❌ Error generating PDF: ' + error.message);
                 }
             };
 
@@ -3645,6 +3959,219 @@
                 );
             }
 
+            // Settings/Export Screen Component
+            if (currentScreen === 'settings') {
+                return (
+                    <div className="min-h-screen py-8 px-4 bg-gray-50">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <div className="flex justify-between items-center">
+                                    <h1 className="text-3xl font-bold text-gray-800">⚙️ Settings & Export</h1>
+                                    <button
+                                        onClick={() => setCurrentScreen('home')}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        ← Back to Home
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Export Options */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-blue-700 mb-4">📤 Export Options</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button
+                                        onClick={exportToPDF}
+                                        className="p-6 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-lg shadow-md transition-all"
+                                    >
+                                        <div className="text-4xl mb-3">📄</div>
+                                        <h3 className="font-bold text-lg mb-2">Export Progress Report (PDF)</h3>
+                                        <p className="text-sm text-red-100">Stats summary, chapter performance, achievements, exam history</p>
+                                    </button>
+
+                                    <button
+                                        onClick={exportToJSON}
+                                        className="p-6 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow-md transition-all"
+                                    >
+                                        <div className="text-4xl mb-3">💾</div>
+                                        <h3 className="font-bold text-lg mb-2">Download Backup (JSON)</h3>
+                                        <p className="text-sm text-green-100">Complete backup of all your data for safekeeping</p>
+                                    </button>
+
+                                    <div className="p-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-lg shadow-md">
+                                        <div className="text-4xl mb-3">📥</div>
+                                        <h3 className="font-bold text-lg mb-2">Load Backup</h3>
+                                        <p className="text-sm text-blue-100 mb-3">Restore your data from a backup file</p>
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            onChange={importFromJSON}
+                                            className="w-full px-3 py-2 bg-white text-gray-800 rounded border-2 border-blue-300 cursor-pointer text-sm"
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={() => setShowShareCard(!showShareCard)}
+                                        className="p-6 bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white rounded-lg shadow-md transition-all"
+                                    >
+                                        <div className="text-4xl mb-3">📸</div>
+                                        <h3 className="font-bold text-lg mb-2">Generate Share Card</h3>
+                                        <p className="text-sm text-purple-100">Create shareable achievement image for social media</p>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Friend Code System */}
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 className="text-2xl font-bold text-purple-700 mb-4">🤝 Friend Code System</h2>
+                                <p className="text-gray-600 mb-4">Share your progress with friends or compare stats!</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Generate Code */}
+                                    <div className="p-6 bg-purple-50 border-2 border-purple-300 rounded-lg">
+                                        <h3 className="font-bold text-lg text-purple-800 mb-3">📊 Your Friend Code</h3>
+                                        <button
+                                            onClick={() => {
+                                                const code = generateFriendCode();
+                                                setFriendCode(code);
+                                                navigator.clipboard.writeText(code);
+                                                alert('✅ Friend code copied to clipboard!');
+                                            }}
+                                            className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold mb-3"
+                                        >
+                                            Generate & Copy Code
+                                        </button>
+                                        {friendCode && (
+                                            <div className="p-3 bg-white border-2 border-purple-200 rounded font-mono text-sm break-all">
+                                                {friendCode}
+                                            </div>
+                                        )}
+                                        <p className="text-xs text-purple-600 mt-2">Share this code with friends to compare stats!</p>
+                                    </div>
+
+                                    {/* Load Friend Code */}
+                                    <div className="p-6 bg-green-50 border-2 border-green-300 rounded-lg">
+                                        <h3 className="font-bold text-lg text-green-800 mb-3">👥 View Friend's Stats</h3>
+                                        <input
+                                            type="text"
+                                            value={friendCodeInput}
+                                            onChange={(e) => setFriendCodeInput(e.target.value)}
+                                            placeholder="Paste friend code here..."
+                                            className="w-full px-4 py-3 border-2 border-green-300 rounded-lg mb-3 focus:border-green-500 focus:outline-none"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const data = loadFromFriendCode(friendCodeInput);
+                                                if (data) {
+                                                    setFriendData(data);
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold"
+                                        >
+                                            Load Friend's Stats
+                                        </button>
+
+                                        {friendData && (
+                                            <div className="mt-4 p-3 bg-white border-2 border-green-200 rounded">
+                                                <p className="text-sm font-semibold text-gray-800 mb-2">Friend's Progress:</p>
+                                                <div className="text-sm text-gray-700 space-y-1">
+                                                    <p>Level: {friendData.level} | XP: {friendData.xp}</p>
+                                                    <p>Streak: {friendData.streak} days | Tokens: {friendData.tokens}</p>
+                                                    <p>Achievements: {friendData.achievements}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Shareable Achievement Card (hidden, used for capture) */}
+                            {showShareCard && (
+                                <>
+                                    <div id="share-card" className="bg-gradient-to-br from-blue-700 to-indigo-900 rounded-lg shadow-2xl p-8 mb-6 text-white">
+                                        <div className="text-center mb-6">
+                                            <h2 className="text-4xl font-bold mb-2">CTFL Study Progress</h2>
+                                            <p className="text-blue-200 text-lg">My Achievement Journey</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-6 mb-6">
+                                            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+                                                <div className="text-5xl mb-2">🎯</div>
+                                                <div className="text-3xl font-bold">{level}</div>
+                                                <div className="text-blue-200 text-sm">Level</div>
+                                            </div>
+                                            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+                                                <div className="text-5xl mb-2">⚡</div>
+                                                <div className="text-3xl font-bold">{xp}</div>
+                                                <div className="text-blue-200 text-sm">XP Earned</div>
+                                            </div>
+                                            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+                                                <div className="text-5xl mb-2">🔥</div>
+                                                <div className="text-3xl font-bold">{streak}</div>
+                                                <div className="text-blue-200 text-sm">Day Streak</div>
+                                            </div>
+                                            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+                                                <div className="text-5xl mb-2">🏆</div>
+                                                <div className="text-3xl font-bold">{Object.keys(achievements).length}</div>
+                                                <div className="text-blue-200 text-sm">Achievements</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white/10 backdrop-blur rounded-lg p-4 mb-6">
+                                            <h3 className="font-bold text-xl mb-3 text-center">Recent Achievements</h3>
+                                            <div className="flex flex-wrap gap-2 justify-center">
+                                                {Object.keys(achievements).slice(0, 8).map(achId => {
+                                                    const ach = achievementList.find(a => a.id === achId);
+                                                    return ach ? (
+                                                        <div key={achId} className="bg-white/20 px-3 py-2 rounded-lg text-center">
+                                                            <div className="text-2xl">{ach.emoji}</div>
+                                                            <div className="text-xs text-blue-100">{ach.name}</div>
+                                                        </div>
+                                                    ) : null;
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="text-center text-blue-200 text-sm">
+                                            <p>🎓 CTFL Quiz App - Gamified Exam Preparation</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-center mb-6">
+                                        <button
+                                            onClick={generateShareableImage}
+                                            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold text-lg shadow-lg"
+                                        >
+                                            📸 Download Achievement Card
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Print Instructions */}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h2 className="text-2xl font-bold text-green-700 mb-4">🖨️ Print-Friendly Features</h2>
+                                <p className="text-gray-600 mb-4">Use your browser's print function (Ctrl+P / Cmd+P) to print:</p>
+                                <ul className="space-y-2 text-gray-700">
+                                    <li className="flex items-start">
+                                        <span className="text-green-600 font-bold mr-3">✓</span>
+                                        <span><strong>Quick Reference Guides</strong> - Print any chapter's cheat sheet from the Reference section</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-green-600 font-bold mr-3">✓</span>
+                                        <span><strong>Statistics Dashboard</strong> - Print your performance charts and stats</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-green-600 font-bold mr-3">✓</span>
+                                        <span><strong>Exam Tips Page</strong> - Print the study tips and common traps</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             // Achievements Screen Component
             if (currentScreen === 'achievements') {
                 const getProgress = (achievementId) => {
@@ -3808,6 +4335,13 @@
                                         >
                                             <span className="text-2xl mr-1">📊</span>
                                             <span>Stats</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentScreen('settings')}
+                                            className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg px-4 py-2 text-white font-bold shadow-md hover:from-purple-600 hover:to-purple-700 transition-all"
+                                        >
+                                            <span className="text-2xl mr-1">⚙️</span>
+                                            <span>Export</span>
                                         </button>
                                         <TokenCounter />
                                         <BadgeCounter />
