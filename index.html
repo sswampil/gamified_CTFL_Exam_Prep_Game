@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CTFL Quiz App</title>
+    <meta name="description" content="Gamified CTFL (Certified Tester Foundation Level) Exam Preparation - Practice quizzes, earn XP, unlock achievements, and track your progress!">
+    <title>CTFL Quiz App - Gamified Exam Preparation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
     <style>
         @keyframes xpFloat {
             0% {
@@ -86,9 +90,141 @@
         .level-up-modal {
             animation: pulse 0.5s ease-in-out;
         }
+
+        @keyframes correctFlash {
+            0% { background-color: transparent; }
+            50% { background-color: rgba(16, 185, 129, 0.3); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        @keyframes slideInBounce {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            60% {
+                transform: translateY(10%);
+                opacity: 1;
+            }
+            80% {
+                transform: translateY(-5%);
+            }
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .correct-flash {
+            animation: correctFlash 0.6s ease-out;
+        }
+
+        .wrong-shake {
+            animation: wrongShake 0.6s ease-out;
+        }
+
+        .slide-in-bounce {
+            animation: slideInBounce 0.6s ease-out;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-out;
+        }
+
+        .page-transition {
+            animation: fadeIn 0.4s ease-in;
+        }
+
+        /* Dark mode styles */
+        .dark {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+
+        .dark .bg-white {
+            background-color: #2d3748 !important;
+        }
+
+        .dark .bg-gray-50 {
+            background-color: #1a202c !important;
+        }
+
+        .dark .bg-gray-100 {
+            background-color: #2d3748 !important;
+        }
+
+        .dark .text-gray-800 {
+            color: #e2e8f0 !important;
+        }
+
+        .dark .text-gray-700 {
+            color: #cbd5e0 !important;
+        }
+
+        .dark .text-gray-600 {
+            color: #a0aec0 !important;
+        }
+
+        .dark .border-gray-200 {
+            border-color: #4a5568 !important;
+        }
+
+        .dark .border-gray-300 {
+            border-color: #4a5568 !important;
+        }
+
+        /* Skeleton loader */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        .dark .skeleton {
+            background: linear-gradient(90deg, #2d3748 25%, #4a5568 50%, #2d3748 75%);
+            background-size: 1000px 100%;
+        }
+
+        /* Button hover effects */
+        button {
+            transition: all 0.2s ease-in-out;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50" id="app-body">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -909,6 +1045,43 @@
             });
             const [studySessionStart, setStudySessionStart] = useState(null);
             const [showNewMissionsBanner, setShowNewMissionsBanner] = useState(false);
+
+            // Settings State
+            const [settings, setSettings] = useState({
+                soundEnabled: true,
+                darkMode: false
+            });
+            const [isLoading, setIsLoading] = useState(false);
+            const [answerAnimation, setAnswerAnimation] = useState(null);
+
+            // Load settings from localStorage and apply dark mode
+            useEffect(() => {
+                const savedSettings = localStorage.getItem('ctfl-settings');
+                if (savedSettings) {
+                    try {
+                        const data = JSON.parse(savedSettings);
+                        setSettings(data);
+                        if (data.darkMode) {
+                            document.getElementById('app-body').classList.add('dark');
+                        }
+                    } catch (e) {
+                        console.error('Error loading settings:', e);
+                    }
+                }
+            }, []);
+
+            // Toggle dark mode
+            const toggleDarkMode = () => {
+                const newSettings = { ...settings, darkMode: !settings.darkMode };
+                setSettings(newSettings);
+                localStorage.setItem('ctfl-settings', JSON.stringify(newSettings));
+
+                if (newSettings.darkMode) {
+                    document.getElementById('app-body').classList.add('dark');
+                } else {
+                    document.getElementById('app-body').classList.remove('dark');
+                }
+            };
 
             // Load chapter stats from localStorage on mount
             useEffect(() => {
@@ -2559,12 +2732,21 @@
                                         <h1 className="text-3xl font-bold text-gray-800 mb-2">📊 Statistics Dashboard</h1>
                                         <p className="text-gray-600">Track your progress and identify areas for improvement</p>
                                     </div>
-                                    <button
-                                        onClick={() => setCurrentScreen('home')}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-                                    >
-                                        ← Back to Home
-                                    </button>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={toggleDarkMode}
+                                            className="px-4 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-semibold transition-colors"
+                                            title={settings.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                        >
+                                            {settings.darkMode ? '☀️' : '🌙'}
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentScreen('home')}
+                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                        >
+                                            ← Back to Home
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2999,6 +3181,13 @@
                                         </p>
                                     </div>
                                     <div className="ml-4 flex gap-3">
+                                        <button
+                                            onClick={toggleDarkMode}
+                                            className="bg-gray-800 hover:bg-gray-900 rounded-lg px-3 py-2 text-white font-bold shadow-md transition-all text-2xl"
+                                            title={settings.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                        >
+                                            {settings.darkMode ? '☀️' : '🌙'}
+                                        </button>
                                         <button
                                             onClick={() => setCurrentScreen('stats')}
                                             className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg px-4 py-2 text-white font-bold shadow-md hover:from-indigo-600 hover:to-indigo-700 transition-all"
